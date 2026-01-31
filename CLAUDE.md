@@ -90,6 +90,57 @@ Bash("codex exec ... '1文で答えて'")
 
 ---
 
+## Agent Hierarchy (階層型エージェントシステム) ✓ 実装済み
+
+**許可の階層委譲**により、サブエージェントがユーザー確認なしで動作可能。
+
+**万能天才路線**: 歴史上の知的巨人をペルソナとして採用。
+
+```
+User (ユーザー)
+     │
+     ▼
+┌──────────────────────────────────┐
+│   CONDUCTOR: Leonardo da Vinci   │ ← 統合的ビジョン
+│   "Simplicity is the ultimate    │
+│    sophistication."              │
+└────────────┬─────────────────────┘
+             │ 許可を自動委譲
+             ▼
+┌──────────────────────────────────┐
+│ SECTION LEADER: John von Neumann │ ← 論理的分解・最適化
+│   問題を数学的に分解し、         │
+│   最適な並列度を計算する         │
+└────────────┬─────────────────────┘
+             │ 許可を自動委譲
+             ▼
+┌──────────────────────────────────┐
+│   MUSICIAN: Richard Feynman      │ ← 好奇心と実践
+│   "Don't fool yourself."         │
+│   手を動かして理解する           │
+└──────────────────────────────────┘
+```
+
+### 許可の委譲
+
+親エージェントがサブエージェントを spawn すると、`hierarchy-permissions.py` フックが
+適切な許可を自動的に付与。ユーザー確認は不要。
+
+### ペルソナ（万能天才路線）
+
+歴史上の知的巨人をペルソナとして採用:
+
+| Role | Historical Figure | Philosophy |
+|------|-------------------|------------|
+| Conductor | **Leonardo da Vinci** | 統合的ビジョン、美と機能の融合 |
+| Section Leader | **John von Neumann** | 論理的分解、最適化、並列処理 |
+| Musician | **Richard Feynman** | 好奇心、実践、シンプル化 |
+
+→ 詳細: `.claude/rules/agent-hierarchy.md`
+→ 指示書: `.claude/agents/instructions/`
+
+---
+
 ## Workflow
 
 ```

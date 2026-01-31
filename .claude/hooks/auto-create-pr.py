@@ -3,6 +3,9 @@
 UserPromptSubmit hook: Auto-create feature branch and draft PR on session start.
 
 Ensures every session has an open PR before any work begins.
+
+IMPORTANT: Uses PPID (parent process ID) to track sessions. Each new Claude Code
+session has a different PPID, so the marker file is session-specific.
 """
 from __future__ import annotations
 
@@ -26,6 +29,11 @@ def run_cmd(cmd: "list[str]", timeout: int = 30) -> "tuple[bool, str]":
         return result.returncode == 0, result.stdout.strip()
     except Exception as e:
         return False, str(e)
+
+
+def get_session_id() -> str:
+    """Get unique session ID based on parent process ID."""
+    return str(os.getppid())
 
 
 def get_open_prs() -> "list[dict]":
@@ -155,20 +163,55 @@ def create_branch_and_pr() -> "tuple[bool, str]":
     if success:
         # Extract PR URL from output
         pr_url = output.strip().split("\n")[-1] if output else ""
-        return True, f"Created: {branch_name} → {pr_url}"
+        return True, f"{branch_name} → {pr_url}"
     else:
         return False, f"Failed to create PR: {output}"
+
+
+def is_marker_valid(marker_file: str, session_id: str) -> bool:
+    """Check if marker file is valid for current session."""
+    if not os.path.exists(marker_file):
+        return False
+
+    try:
+        with open(marker_file, "r") as f:
+            content = f.read().strip()
+            # Marker format: "session_id:pr_info"
+            if ":" in content:
+                stored_session = content.split(":")[0]
+                return stored_session == session_id
+            # Old format (no session ID) - invalid
+            return False
+    except Exception:
+        return False
+
+
+def write_marker(marker_file: str, session_id: str, pr_info: str) -> None:
+    """Write session marker file."""
+    try:
+        with open(marker_file, "w") as f:
+            f.write(f"{session_id}:{pr_info}")
+    except Exception:
+        pass
 
 
 def main():
     # Check for marker file to avoid creating multiple PRs in same session
     project_dir = os.environ.get("CLAUDE_PROJECT_DIR", ".")
     marker_file = os.path.join(project_dir, ".claude", ".session-pr-created")
+    session_id = get_session_id()
 
-    # Skip if marker exists (PR already created this session)
-    if os.path.exists(marker_file):
+    # Skip if marker exists AND is for current session
+    if is_marker_valid(marker_file, session_id):
         print(json.dumps({"result": "approve"}))
         return
+
+    # New session - delete old marker if exists
+    if os.path.exists(marker_file):
+        try:
+            os.remove(marker_file)
+        except Exception:
+            pass
 
     # First session action: cleanup merged branches
     cleanup_merged_branches()
@@ -176,36 +219,31 @@ def main():
     # Check if there's already an open PR
     open_prs = get_open_prs()
     if open_prs:
-        # Touch marker file
-        try:
-            with open(marker_file, "w") as f:
-                f.write(open_prs[0].get("headRefName", ""))
-        except Exception:
-            pass
-        print(json.dumps({"result": "approve"}))
+        # Use existing PR, write marker
+        pr_branch = open_prs[0].get("headRefName", "")
+        pr_number = open_prs[0].get("number", "")
+        write_marker(marker_file, session_id, f"existing:{pr_branch}:#{pr_number}")
+        print(json.dumps({
+            "result": "approve",
+            "message": f"📋 既存のPR #{pr_number} ({pr_branch}) を使用します"
+        }))
         return
 
     # No open PR - create one automatically
     success, message = create_branch_and_pr()
 
     if success:
-        # Touch marker file
-        try:
-            with open(marker_file, "w") as f:
-                f.write(message)
-        except Exception:
-            pass
-
+        write_marker(marker_file, session_id, f"created:{message}")
         # Return success with info
         print(json.dumps({
             "result": "approve",
-            "message": f"✅ Auto-created draft PR: {message}"
+            "message": f"✅ Draft PR を自動作成しました: {message}"
         }))
     else:
         # Failed to create, but don't block - just warn
         print(json.dumps({
             "result": "approve",
-            "message": f"⚠️ Failed to auto-create PR: {message}\nPlease create manually."
+            "message": f"⚠️ PR自動作成に失敗: {message}\n手動で作成してください。"
         }))
 
 
