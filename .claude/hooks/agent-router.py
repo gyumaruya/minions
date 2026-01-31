@@ -2,14 +2,16 @@
 """
 UserPromptSubmit hook: Route to appropriate agent based on user intent.
 
-Analyzes user prompts and suggests the most appropriate agent
-(Codex for design/debug, Gemini for research/multimodal).
+Priority:
+1. Codex - Design, debugging, deep reasoning (important tasks)
+2. Gemini - Research, multimodal, large context (specialized tasks)
+3. Copilot - Everything else (cost-effective default with subagents)
 """
 
 import json
 import sys
 
-# Triggers for Codex (design, debugging, deep reasoning)
+# Triggers for Codex (design, debugging, deep reasoning) - HIGH PRIORITY
 CODEX_TRIGGERS = {
     "ja": [
         "設計", "どう設計", "アーキテクチャ",
@@ -17,8 +19,9 @@ CODEX_TRIGGERS = {
         "どちらがいい", "比較して", "トレードオフ",
         "実装方法", "どう実装",
         "リファクタリング", "リファクタ",
-        "レビュー", "見て",
+        "レビュー",
         "考えて", "分析して", "深く",
+        "セキュリティ", "パフォーマンス",
     ],
     "en": [
         "design", "architecture", "architect",
@@ -26,12 +29,13 @@ CODEX_TRIGGERS = {
         "compare", "trade-off", "tradeoff", "which is better",
         "how to implement", "implementation",
         "refactor", "simplify",
-        "review", "check this",
+        "review",
         "think", "analyze", "deeply",
+        "security", "performance", "optimize",
     ],
 }
 
-# Triggers for Gemini (research, multimodal, large context)
+# Triggers for Gemini (research, multimodal, large context) - SPECIALIZED
 GEMINI_TRIGGERS = {
     "ja": [
         "調べて", "リサーチ", "調査",
@@ -39,6 +43,7 @@ GEMINI_TRIGGERS = {
         "コードベース全体", "リポジトリ全体",
         "最新", "ドキュメント",
         "ライブラリ", "パッケージ",
+        "Web検索", "ググって",
     ],
     "en": [
         "research", "investigate", "look up", "find out",
@@ -46,25 +51,49 @@ GEMINI_TRIGGERS = {
         "entire codebase", "whole repository",
         "latest", "documentation", "docs",
         "library", "package", "framework",
+        "web search", "google",
     ],
 }
 
+# Tasks that should stay with Claude directly (no delegation needed)
+DIRECT_TASKS = [
+    "commit", "push", "pull",
+    "コミット", "プッシュ",
+    "ファイル作成", "ファイル編集",
+    "create file", "edit file",
+    "status", "log", "diff",
+]
+
 
 def detect_agent(prompt: str) -> tuple[str | None, str]:
-    """Detect which agent should handle this prompt."""
+    """Detect which agent should handle this prompt.
+
+    Returns:
+        (agent_name, trigger) or (None, "") if should use Copilot as default
+    """
     prompt_lower = prompt.lower()
 
-    # Check Codex triggers
+    # Check if this is a direct task (no delegation)
+    for task in DIRECT_TASKS:
+        if task in prompt_lower:
+            return "direct", task
+
+    # Priority 1: Check Codex triggers (important tasks)
     for triggers in CODEX_TRIGGERS.values():
         for trigger in triggers:
             if trigger in prompt_lower:
                 return "codex", trigger
 
-    # Check Gemini triggers
+    # Priority 2: Check Gemini triggers (specialized tasks)
     for triggers in GEMINI_TRIGGERS.values():
         for trigger in triggers:
             if trigger in prompt_lower:
                 return "gemini", trigger
+
+    # Priority 3: Everything else -> Copilot (cost-effective)
+    # Only suggest for non-trivial prompts
+    if len(prompt) > 20:
+        return "copilot", "general task"
 
     return None, ""
 
@@ -74,21 +103,25 @@ def main():
         data = json.load(sys.stdin)
         prompt = data.get("prompt", "")
 
-        # Skip short prompts
+        # Skip very short prompts
         if len(prompt) < 10:
             sys.exit(0)
 
         agent, trigger = detect_agent(prompt)
 
-        if agent == "codex":
+        if agent == "direct":
+            # No suggestion needed
+            sys.exit(0)
+
+        elif agent == "codex":
             output = {
                 "hookSpecificOutput": {
                     "hookEventName": "UserPromptSubmit",
                     "additionalContext": (
-                        f"[Agent Routing] Detected '{trigger}' - this task may benefit from "
-                        "Codex CLI's deep reasoning capabilities. Consider: "
-                        "`codex exec --model gpt-5.2-codex --sandbox read-only --full-auto "
-                        '"{task description}"` for design decisions, debugging, or complex analysis.'
+                        f"[Agent: Codex] Detected '{trigger}' - important task requiring deep reasoning. "
+                        "Use Codex for design decisions, debugging, or complex analysis. "
+                        "Command: `codex exec --model gpt-5.2-codex --sandbox read-only --full-auto \"...\"` "
+                        "(via subagent for large outputs)"
                     )
                 }
             }
@@ -99,10 +132,24 @@ def main():
                 "hookSpecificOutput": {
                     "hookEventName": "UserPromptSubmit",
                     "additionalContext": (
-                        f"[Agent Routing] Detected '{trigger}' - this task may benefit from "
-                        "Gemini CLI's research capabilities. Consider: "
-                        '`gemini -p "Research: {topic}" 2>/dev/null` '
-                        "for documentation, library research, or multimodal content."
+                        f"[Agent: Gemini] Detected '{trigger}' - specialized research/multimodal task. "
+                        "Use Gemini for research, large context analysis, or multimodal content. "
+                        "Command: `gemini -p \"...\" 2>/dev/null` "
+                        "(via subagent for large outputs)"
+                    )
+                }
+            }
+            print(json.dumps(output))
+
+        elif agent == "copilot":
+            output = {
+                "hookSpecificOutput": {
+                    "hookEventName": "UserPromptSubmit",
+                    "additionalContext": (
+                        "[Agent: Copilot] General task - consider using Copilot CLI for cost-effective "
+                        "execution with subagent capabilities. "
+                        "Command: `copilot -p \"...\" --model claude-opus-4.5 --allow-all --silent 2>/dev/null` "
+                        "(direct call OK for quick tasks)"
                     )
                 }
             }

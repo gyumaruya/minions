@@ -116,3 +116,41 @@ jj undo
 jj op log    # See operation history
 jj op undo <op-id>
 ```
+
+## Auto-Commit on Verification
+
+**動作確認が成功したら自動でコミット・プッシュを行う。**
+
+### Trigger Conditions
+
+以下の場合に自動コミットを提案/実行:
+
+1. **テスト成功時** - `pytest`, `poe test`, `npm test` などが pass
+2. **エージェント検証成功時** - `copilot`, `codex`, `gemini` コマンドが正常終了
+3. **Lint/Type check 成功時** - `ruff check`, `ty check` が pass
+
+### Auto-Commit Flow
+
+```
+変更作成 → 動作確認 → 成功 → 自動コミット提案
+                         ↓
+              jj describe -m "..." && jj bookmark set main -r @ && jj git push
+```
+
+### Quick Ship Command
+
+動作確認後、以下で即座にプッシュ:
+
+```bash
+# Feature branch の場合
+jj git push --bookmark <branch-name>
+
+# Main に直接マージする場合
+jj bookmark set main -r @ && jj git push
+```
+
+### Important
+
+- **動作確認なし** → 自動コミットしない
+- **テスト失敗** → 自動コミットしない
+- **未検証の変更** → 手動確認を要求
