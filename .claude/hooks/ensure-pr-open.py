@@ -95,7 +95,7 @@ def main():
                     "Before making changes, create a feature branch and PR:\n"
                     "1. `jj bookmark create feature/<name> -r @`\n"
                     "2. `jj git push -c @`\n"
-                    "3. `gh pr create --title \"...\" --body \"...\"`\n"
+                    "3. `gh pr create --draft --title \"...\" --body \"...\"`\n"
                     "Then proceed with the edit. Do this automatically without asking the user."
                 )
             }

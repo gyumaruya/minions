@@ -67,8 +67,8 @@ jj git push -c @
 jj bookmark create feature/xxx -r @
 jj git push --bookmark feature/xxx
 
-# Then create PR
-gh pr create --title "..." --body "..."
+# Then create PR (draft to avoid auto-review)
+gh pr create --draft --title "..." --body "..."
 ```
 
 ### Sync with Remote
@@ -141,7 +141,7 @@ jj op undo <op-id>
 ```
 変更作成 → 動作確認 → 成功 → 自動コミット提案
                          ↓
-              jj describe -m "..." && jj git push -c @ && gh pr create
+              jj describe -m "..." && jj git push -c @ && gh pr create --draft
 ```
 
 ### Quick Ship Command
@@ -149,10 +149,10 @@ jj op undo <op-id>
 動作確認後、以下で Feature Branch → PR:
 
 ```bash
-# Feature branch 作成 & プッシュ & PR 作成
+# Feature branch 作成 & プッシュ & PR 作成（ドラフト）
 jj describe -m "..."
 jj git push -c @
-gh pr create --title "..." --body "..."
+gh pr create --draft --title "..." --body "..."
 ```
 
 ### Important
@@ -185,11 +185,14 @@ jj describe -m "..."
 # 3. プッシュ
 jj git push --bookmark feature/xxx
 
-# 4. PR 作成 (URL を表示)
-gh pr create --title "..." --body "..."
+# 4. PR 作成（ドラフト、URL を表示）
+gh pr create --draft --title "..." --body "..."
 # → https://github.com/.../pull/N
 
-# 5. マージ後のクリーンアップ
+# 5. Ready for review（レビュー準備完了時）
+gh pr ready
+
+# 6. マージ後のクリーンアップ
 jj git fetch && jj rebase -d main@origin
 jj abandon @  # 空のコミットを破棄
 ```
