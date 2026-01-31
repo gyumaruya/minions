@@ -46,12 +46,22 @@
             "type": "command",
             "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/enforce-draft-pr.py\"",
             "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/enforce-no-merge.py\"",
+            "timeout": 5
           }
         ]
       },
       {
         "matcher": "Edit|Write",
         "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/enforce-hierarchy.py\"",
+            "timeout": 5
+          },
           {
             "type": "command",
             "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/ensure-pr-open.py\"",
@@ -83,6 +93,11 @@
             "type": "command",
             "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/check-codex-after-plan.py\"",
             "timeout": 10
+          },
+          {
+            "type": "command",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/hierarchy-permissions.py\"",
+            "timeout": 5
           }
         ]
       },
@@ -198,6 +213,7 @@
       "Bash(codex:*)",
       "Bash(gh:*)",
       "Bash(copilot:*)",
+      "Bash(claude:*)",
       "Bash(pkill:*)",
       "Bash(for:*)",
       "Bash(do)",

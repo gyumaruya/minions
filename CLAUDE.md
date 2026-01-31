@@ -90,6 +90,52 @@ Bash("codex exec ... '1文で答えて'")
 
 ---
 
+## Agent Hierarchy (階層型エージェントシステム) ✓ 実装済み
+
+**許可の階層委譲**により、サブエージェントがユーザー確認なしで動作可能。
+
+```
+User (ユーザー)
+     │
+     ▼
+┌──────────────────┐
+│    CONDUCTOR     │ ← 全体統括（許可: ALL）
+│     (指揮者)     │
+└────────┬─────────┘
+         │ 許可を自動委譲
+         ▼
+┌──────────────────┐
+│  SECTION LEADER  │ ← タスク管理（許可: Read/Write/Edit/Bash/Task）
+│(セクションリーダー)│
+└────────┬─────────┘
+         │ 許可を自動委譲
+         ▼
+┌──────────────────┐
+│     MUSICIAN     │ ← 実行（許可: Read/Write/Edit/SafeBash）
+│     (演奏者)     │
+└──────────────────┘
+```
+
+### 許可の委譲
+
+親エージェントがサブエージェントを spawn すると、`hierarchy-permissions.py` フックが
+適切な許可を自動的に付与。ユーザー確認は不要。
+
+### ペルソナ
+
+各階層に専門的なペルソナを設定:
+
+| Role | Professional Identity |
+|------|----------------------|
+| Conductor | PM / Architect |
+| Section Leader | Tech Lead / Scrum Master |
+| Musician | Senior Engineer / Writer / etc. |
+
+→ 詳細: `.claude/rules/agent-hierarchy.md`
+→ 指示書: `.claude/agents/instructions/`
+
+---
+
 ## Workflow
 
 ```
