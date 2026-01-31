@@ -3,6 +3,11 @@
 UserPromptSubmit hook: Auto-create feature branch and draft PR on session start.
 
 Ensures every session has an open PR before any work begins.
+
+IMPORTANT: Uses PPID (parent process ID) to track sessions. Each new Claude Code
+session has a different PPID, so the marker file is session-specific.
+
+NOTIFICATION: Writes status to .claude/.pr-status for Claude to read and report.
 """
 from __future__ import annotations
 
@@ -28,11 +33,16 @@ def run_cmd(cmd: "list[str]", timeout: int = 30) -> "tuple[bool, str]":
         return False, str(e)
 
 
+def get_session_id() -> str:
+    """Get unique session ID based on parent process ID."""
+    return str(os.getppid())
+
+
 def get_open_prs() -> "list[dict]":
     """Get list of open PRs."""
     success, output = run_cmd([
         "gh", "pr", "list", "--state", "open",
-        "--json", "number,headRefName,title"
+        "--json", "number,headRefName,title,url"
     ])
     if success and output:
         try:
@@ -48,7 +58,6 @@ def get_current_bookmark() -> Optional[str]:
         "jj", "log", "-r", "@", "--no-graph", "-T", "bookmarks"
     ])
     if success and output:
-        # Return first non-main bookmark
         for bookmark in output.split():
             bookmark = bookmark.rstrip("*")
             if bookmark and bookmark != "main":
@@ -79,10 +88,8 @@ def get_change_id() -> str:
 
 def cleanup_merged_branches() -> None:
     """Delete local bookmarks for merged PRs and sync with main."""
-    # Fetch latest from remote
     run_cmd(["jj", "git", "fetch"])
 
-    # Get list of merged PRs
     success, output = run_cmd([
         "gh", "pr", "list", "--state", "merged",
         "--json", "headRefName", "--limit", "20"
@@ -97,12 +104,10 @@ def cleanup_merged_branches() -> None:
 
     merged_branches = {pr.get("headRefName") for pr in merged_prs if pr.get("headRefName")}
 
-    # Get local bookmarks
     success, output = run_cmd(["jj", "bookmark", "list"])
     if not success:
         return
 
-    # Delete local bookmarks that correspond to merged PRs
     for line in output.split("\n"):
         if not line.strip():
             continue
@@ -110,10 +115,8 @@ def cleanup_merged_branches() -> None:
         if bookmark in merged_branches and bookmark != "main":
             run_cmd(["jj", "bookmark", "delete", bookmark])
 
-    # Rebase to latest main
     run_cmd(["jj", "rebase", "-d", "main@origin"])
 
-    # Abandon empty commits
     success, output = run_cmd([
         "jj", "log", "-r", "@", "--no-graph", "-T", "empty"
     ])
@@ -121,28 +124,23 @@ def cleanup_merged_branches() -> None:
         run_cmd(["jj", "abandon", "@"])
 
 
-def create_branch_and_pr() -> "tuple[bool, str]":
-    """Create a new feature branch and draft PR."""
+def create_branch_and_pr() -> "tuple[bool, str, str]":
+    """Create a new feature branch and draft PR. Returns (success, message, url)."""
     change_id = get_change_id()
     branch_name = f"feature/session-{change_id}"
 
-    # Add commit description first (required for push)
     run_cmd(["jj", "describe", "-m", f"WIP: Session {change_id}"])
 
-    # Create bookmark
     success, _ = run_cmd(["jj", "bookmark", "create", branch_name, "-r", "@"])
     if not success:
-        # Bookmark might exist, try to set it
         run_cmd(["jj", "bookmark", "set", branch_name, "-r", "@"])
 
-    # Push with --allow-new
     success, output = run_cmd([
         "jj", "git", "push", "--bookmark", branch_name, "--allow-new"
     ])
     if not success:
-        return False, f"Failed to push: {output}"
+        return False, f"Failed to push: {output}", ""
 
-    # Create draft PR
     success, output = run_cmd([
         "gh", "pr", "create",
         "--draft",
@@ -153,22 +151,63 @@ def create_branch_and_pr() -> "tuple[bool, str]":
     ])
 
     if success:
-        # Extract PR URL from output
         pr_url = output.strip().split("\n")[-1] if output else ""
-        return True, f"Created: {branch_name} → {pr_url}"
+        return True, f"{branch_name}", pr_url
     else:
-        return False, f"Failed to create PR: {output}"
+        return False, f"Failed to create PR: {output}", ""
+
+
+def is_marker_valid(marker_file: str, session_id: str) -> bool:
+    """Check if marker file is valid for current session."""
+    if not os.path.exists(marker_file):
+        return False
+
+    try:
+        with open(marker_file, "r") as f:
+            content = f.read().strip()
+            if ":" in content:
+                stored_session = content.split(":")[0]
+                return stored_session == session_id
+            return False
+    except Exception:
+        return False
+
+
+def write_marker(marker_file: str, session_id: str, pr_info: str) -> None:
+    """Write session marker file."""
+    try:
+        with open(marker_file, "w") as f:
+            f.write(f"{session_id}:{pr_info}")
+    except Exception:
+        pass
+
+
+def write_status(project_dir: str, status: dict) -> None:
+    """Write PR status for Claude to read and report."""
+    status_file = os.path.join(project_dir, ".claude", ".pr-status")
+    try:
+        with open(status_file, "w") as f:
+            json.dump(status, f, ensure_ascii=False, indent=2)
+    except Exception:
+        pass
 
 
 def main():
-    # Check for marker file to avoid creating multiple PRs in same session
     project_dir = os.environ.get("CLAUDE_PROJECT_DIR", ".")
     marker_file = os.path.join(project_dir, ".claude", ".session-pr-created")
+    session_id = get_session_id()
 
-    # Skip if marker exists (PR already created this session)
-    if os.path.exists(marker_file):
+    # Skip if marker exists AND is for current session
+    if is_marker_valid(marker_file, session_id):
         print(json.dumps({"result": "approve"}))
         return
+
+    # New session - delete old marker if exists
+    if os.path.exists(marker_file):
+        try:
+            os.remove(marker_file)
+        except Exception:
+            pass
 
     # First session action: cleanup merged branches
     cleanup_merged_branches()
@@ -176,36 +215,57 @@ def main():
     # Check if there's already an open PR
     open_prs = get_open_prs()
     if open_prs:
-        # Touch marker file
-        try:
-            with open(marker_file, "w") as f:
-                f.write(open_prs[0].get("headRefName", ""))
-        except Exception:
-            pass
-        print(json.dumps({"result": "approve"}))
+        pr = open_prs[0]
+        pr_branch = pr.get("headRefName", "")
+        pr_number = pr.get("number", "")
+        pr_url = pr.get("url", "")
+
+        write_marker(marker_file, session_id, f"existing:{pr_branch}:#{pr_number}")
+
+        # Write status for Claude to read
+        write_status(project_dir, {
+            "action": "existing",
+            "pr_number": pr_number,
+            "branch": pr_branch,
+            "url": pr_url,
+            "message": f"📋 既存のPR #{pr_number} を使用: {pr_url}"
+        })
+
+        print(json.dumps({
+            "result": "approve",
+            "message": f"📋 既存のPR #{pr_number} ({pr_branch}) を使用します: {pr_url}"
+        }))
         return
 
     # No open PR - create one automatically
-    success, message = create_branch_and_pr()
+    success, message, pr_url = create_branch_and_pr()
 
     if success:
-        # Touch marker file
-        try:
-            with open(marker_file, "w") as f:
-                f.write(message)
-        except Exception:
-            pass
+        write_marker(marker_file, session_id, f"created:{message}")
 
-        # Return success with info
+        # Write status for Claude to read
+        write_status(project_dir, {
+            "action": "created",
+            "branch": message,
+            "url": pr_url,
+            "message": f"✅ Draft PR を自動作成: {pr_url}"
+        })
+
         print(json.dumps({
             "result": "approve",
-            "message": f"✅ Auto-created draft PR: {message}"
+            "message": f"✅ Draft PR を自動作成しました: {message} → {pr_url}"
         }))
     else:
-        # Failed to create, but don't block - just warn
+        # Write failure status
+        write_status(project_dir, {
+            "action": "failed",
+            "error": message,
+            "message": f"⚠️ PR自動作成に失敗: {message}"
+        })
+
         print(json.dumps({
             "result": "approve",
-            "message": f"⚠️ Failed to auto-create PR: {message}\nPlease create manually."
+            "message": f"⚠️ PR自動作成に失敗: {message}\n手動で作成してください。"
         }))
 
 

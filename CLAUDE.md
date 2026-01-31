@@ -6,6 +6,20 @@ Claude Code が Codex CLI（深い推論）、Gemini CLI（大規模リサーチ
 
 ---
 
+## Session Start (MUST READ)
+
+**セッション開始時に必ず実行:**
+
+1. `.claude/.pr-status` を確認し、PRの状態をユーザーに報告する
+2. PRがない場合は自動作成されているはず。されていなければ手動で作成を促す
+
+```bash
+# PRステータス確認
+cat .claude/.pr-status 2>/dev/null || echo "PRステータスなし"
+```
+
+---
+
 ## Why This Exists
 
 | Agent | Strength | Use For |
@@ -87,6 +101,57 @@ Bash("codex exec ... '1文で答えて'")
 → メインエージェント（Sonnet 4、無料枠）+ サブエージェント（Opus 4.5）の構成
 
 → 詳細: `.claude/rules/copilot-delegation.md`
+
+---
+
+## Agent Hierarchy (階層型エージェントシステム) ✓ 実装済み
+
+**許可の階層委譲**により、サブエージェントがユーザー確認なしで動作可能。
+
+**万能天才路線**: 歴史上の知的巨人をペルソナとして採用。
+
+```
+User (ユーザー)
+     │
+     ▼
+┌──────────────────────────────────┐
+│   CONDUCTOR: Leonardo da Vinci   │ ← 統合的ビジョン
+│   "Simplicity is the ultimate    │
+│    sophistication."              │
+└────────────┬─────────────────────┘
+             │ 許可を自動委譲
+             ▼
+┌──────────────────────────────────┐
+│ SECTION LEADER: John von Neumann │ ← 論理的分解・最適化
+│   問題を数学的に分解し、         │
+│   最適な並列度を計算する         │
+└────────────┬─────────────────────┘
+             │ 許可を自動委譲
+             ▼
+┌──────────────────────────────────┐
+│   MUSICIAN: Richard Feynman      │ ← 好奇心と実践
+│   "Don't fool yourself."         │
+│   手を動かして理解する           │
+└──────────────────────────────────┘
+```
+
+### 許可の委譲
+
+親エージェントがサブエージェントを spawn すると、`hierarchy-permissions.py` フックが
+適切な許可を自動的に付与。ユーザー確認は不要。
+
+### ペルソナ（万能天才路線）
+
+歴史上の知的巨人をペルソナとして採用:
+
+| Role | Historical Figure | Philosophy |
+|------|-------------------|------------|
+| Conductor | **Leonardo da Vinci** | 統合的ビジョン、美と機能の融合 |
+| Section Leader | **John von Neumann** | 論理的分解、最適化、並列処理 |
+| Musician | **Richard Feynman** | 好奇心、実践、シンプル化 |
+
+→ 詳細: `.claude/rules/agent-hierarchy.md`
+→ 指示書: `.claude/agents/instructions/`
 
 ---
 
