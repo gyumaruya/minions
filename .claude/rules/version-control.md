@@ -9,22 +9,35 @@ jj is a Git-compatible VCS with a simpler mental model and better conflict handl
 | Rule | Enforcement |
 |------|-------------|
 | **セッション開始時に自動 PR 作成** | `auto-create-pr.py` フック |
-| **PR は必ず draft で作成** | `enforce-draft-pr.py` フック |
+| **PR は必ず draft で作成** | `enforce-draft-pr.py` フック (BLOCK) |
 | **PR なしでの編集禁止** | `ensure-pr-open.py` フック (BLOCK) |
+| **マージ操作禁止** | `enforce-no-merge.py` フック (BLOCK) |
 | **main への直接プッシュ禁止** | Feature Branch → PR → Merge |
 | **マージ済みブランチに再プッシュ禁止** | 新規ブランチ・新規 PR を作成 |
 
-## 自動 PR 作成 (Session Start)
+## 自動 PR 作成 & クリーンアップ (Session Start)
 
 セッション開始時に以下が自動実行される:
 
-1. オープンな PR があるか確認
-2. なければ `feature/session-{change_id}` ブランチを作成
-3. 自動で draft PR を作成
+1. **マージ済みブランチの削除** — 前回セッションのマージ済みブランチをクリーンアップ
+2. **main と同期** — `jj git fetch && jj rebase -d main@origin`
+3. オープンな PR があるか確認
+4. なければ `feature/session-{change_id}` ブランチを作成
+5. 自動で draft PR を作成
 
 **フック**: `.claude/hooks/auto-create-pr.py`
 
-**編集ブロック**: PR がない状態で Edit/Write を試みると **ブロック** される。
+## マージ操作の制限
+
+**エージェントによるマージは禁止。** マージはユーザーが行うべき操作。
+
+| 操作 | 許可 |
+|------|------|
+| `gh pr ready` | ✅ OK |
+| `gh pr view` | ✅ OK |
+| `gh pr merge` | ⛔ BLOCK |
+
+マージはユーザーが GitHub UI または CLI で実行してください。
 
 ## Why jj
 

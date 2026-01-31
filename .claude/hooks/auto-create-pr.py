@@ -77,6 +77,50 @@ def get_change_id() -> str:
     return datetime.now().strftime("%Y%m%d%H%M%S")
 
 
+def cleanup_merged_branches() -> None:
+    """Delete local bookmarks for merged PRs and sync with main."""
+    # Fetch latest from remote
+    run_cmd(["jj", "git", "fetch"])
+
+    # Get list of merged PRs
+    success, output = run_cmd([
+        "gh", "pr", "list", "--state", "merged",
+        "--json", "headRefName", "--limit", "20"
+    ])
+    if not success or not output:
+        return
+
+    try:
+        merged_prs = json.loads(output)
+    except json.JSONDecodeError:
+        return
+
+    merged_branches = {pr.get("headRefName") for pr in merged_prs if pr.get("headRefName")}
+
+    # Get local bookmarks
+    success, output = run_cmd(["jj", "bookmark", "list"])
+    if not success:
+        return
+
+    # Delete local bookmarks that correspond to merged PRs
+    for line in output.split("\n"):
+        if not line.strip():
+            continue
+        bookmark = line.split(":")[0].strip().rstrip("*")
+        if bookmark in merged_branches and bookmark != "main":
+            run_cmd(["jj", "bookmark", "delete", bookmark])
+
+    # Rebase to latest main
+    run_cmd(["jj", "rebase", "-d", "main@origin"])
+
+    # Abandon empty commits
+    success, output = run_cmd([
+        "jj", "log", "-r", "@", "--no-graph", "-T", "empty"
+    ])
+    if success and output.strip() == "true":
+        run_cmd(["jj", "abandon", "@"])
+
+
 def create_branch_and_pr() -> "tuple[bool, str]":
     """Create a new feature branch and draft PR."""
     change_id = get_change_id()
@@ -125,6 +169,9 @@ def main():
     if os.path.exists(marker_file):
         print(json.dumps({"result": "approve"}))
         return
+
+    # First session action: cleanup merged branches
+    cleanup_merged_branches()
 
     # Check if there's already an open PR
     open_prs = get_open_prs()
