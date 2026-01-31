@@ -56,33 +56,20 @@ def set_email(tool: str) -> None:
 
 
 def main() -> None:
-    # Read hook input safely; default to allowing the call on parse failures
+    # Read hook input from stdin
     try:
-        raw_input = sys.stdin.read()
-        if not raw_input.strip():
-            print(json.dumps({"continue": True}))
-            return
-        hook_input = json.loads(raw_input)
-    except json.JSONDecodeError:
-        print(json.dumps({"continue": True}))
-        return
-    except Exception:
-        print(json.dumps({"continue": True}))
-        return
-
-    if not isinstance(hook_input, dict):
-        print(json.dumps({"continue": True}))
-        return
+        hook_input = json.load(sys.stdin)
+    except (json.JSONDecodeError, Exception):
+        sys.exit(0)
 
     tool_name = hook_input.get("tool_name", "")
     tool_input = hook_input.get("tool_input", {})
 
     # Only process Bash commands
     if tool_name != "Bash":
-        print(json.dumps({"continue": True}))
-        return
+        sys.exit(0)
 
-    command = tool_input.get("command", "")
+    command = tool_input.get("command", "") if isinstance(tool_input, dict) else ""
 
     # Check if it's a jj or git command that might commit
     is_jj_commit = command.startswith("jj ") and any(
@@ -93,8 +80,7 @@ def main() -> None:
     )
 
     if not (is_jj_commit or is_git_commit):
-        print(json.dumps({"continue": True}))
-        return
+        sys.exit(0)
 
     # Check and fix email if needed
     tool = "jj" if is_jj_commit else "git"
@@ -107,7 +93,8 @@ def main() -> None:
         if tool == "jj":
             set_email("git")
 
-    print(json.dumps({"continue": True}))
+    # Allow the command
+    sys.exit(0)
 
 
 if __name__ == "__main__":

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Multi-Agent Orchestra Startup Script
-# Launches tmux with Claude Code on the left and dashboard on the right
+# Launches tmux session with Claude Code
 
 set -euo pipefail
 
@@ -78,19 +78,8 @@ create_session() {
     # Create new session in detached mode, starting in project directory
     tmux new-session -d -s "$SESSION_NAME" -c "$PROJECT_DIR"
 
-    # Split horizontally (left: 70%, right: 30%)
-    tmux split-window -h -p 30 -c "$PROJECT_DIR"
-
-    # Select left pane (pane 0) and start Claude Code
-    tmux select-pane -t 0
+    # Start Claude Code in the main pane
     tmux send-keys -t 0 "cd '$PROJECT_DIR' && claude" Enter
-
-    # Select right pane (pane 1) and start dashboard
-    tmux select-pane -t 1
-    tmux send-keys -t 1 "cd '$PROJECT_DIR' && bash scripts/dashboard.sh" Enter
-
-    # Focus on left pane (Claude Code)
-    tmux select-pane -t 0
 
     log_success "Session created successfully!"
 }
@@ -106,14 +95,6 @@ print_help() {
     echo "  -k, --kill     Kill existing session before starting"
     echo "  -n, --name     Session name (default: orchestra)"
     echo "  -d, --detach   Don't attach to session after creation"
-    echo ""
-    echo "Layout:"
-    echo "  ┌─────────────────────┬───────────────┐"
-    echo "  │                     │               │"
-    echo "  │    Claude Code      │   Dashboard   │"
-    echo "  │       (70%)         │     (30%)     │"
-    echo "  │                     │               │"
-    echo "  └─────────────────────┴───────────────┘"
     echo ""
     echo "Tmux keybindings:"
     echo "  Ctrl+b %     Split pane vertically"

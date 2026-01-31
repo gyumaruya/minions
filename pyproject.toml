@@ -78,4 +78,3 @@ typecheck = "mypy src/"
 test = "pytest"
 all = ["lint", "format", "typecheck", "test"]
 orchestra = "bash scripts/start-orchestra.sh"
-dashboard = "bash scripts/dashboard.sh"

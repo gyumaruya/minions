@@ -25,16 +25,13 @@ def validate_path(file_path: str) -> bool:
     return True
 
 
-def get_file_path() -> str | None:
-    """Extract file path from tool input."""
-    tool_input = os.environ.get("CLAUDE_TOOL_INPUT", "")
-    if not tool_input:
-        return None
-
+def get_file_path_from_stdin() -> str | None:
+    """Extract file path from hook input via stdin."""
     try:
-        data = json.loads(tool_input)
-        return data.get("file_path")
-    except json.JSONDecodeError:
+        hook_input = json.load(sys.stdin)
+        tool_input = hook_input.get("tool_input", {})
+        return tool_input.get("file_path") if isinstance(tool_input, dict) else None
+    except (json.JSONDecodeError, Exception):
         return None
 
 
@@ -61,16 +58,16 @@ def run_command(cmd: list[str], cwd: str) -> tuple[int, str, str]:
 
 
 def main() -> None:
-    file_path = get_file_path()
+    file_path = get_file_path_from_stdin()
     if not file_path:
-        return
+        sys.exit(0)
 
     # Validate input
     if not validate_path(file_path):
-        return
+        sys.exit(0)
 
     if not is_python_file(file_path):
-        return
+        sys.exit(0)
 
     project_dir = os.environ.get("CLAUDE_PROJECT_DIR", os.getcwd())
 
@@ -111,17 +108,24 @@ def main() -> None:
         if output.strip():
             issues.append(f"ty check issues:\n{output}")
 
-    # Report results
+    # Report results via hookSpecificOutput
     if issues:
-        print(f"[lint-on-save] Issues found in {rel_path}:", file=sys.stderr)
-        for issue in issues:
-            print(issue, file=sys.stderr)
-        print(
-            "\nPlease review and fix these issues.",
-            file=sys.stderr,
-        )
+        message = f"[lint-on-save] Issues in {rel_path}:\n" + "\n".join(issues)
+        json.dump({
+            "hookSpecificOutput": {
+                "hookEventName": "PostToolUse",
+                "additionalContext": message
+            }
+        }, sys.stdout)
     else:
-        print(f"[lint-on-save] OK: {rel_path} passed all checks")
+        json.dump({
+            "hookSpecificOutput": {
+                "hookEventName": "PostToolUse",
+                "additionalContext": f"[lint-on-save] OK: {rel_path} passed all checks"
+            }
+        }, sys.stdout)
+
+    sys.exit(0)
 
 
 if __name__ == "__main__":

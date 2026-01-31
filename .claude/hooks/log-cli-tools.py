@@ -73,13 +73,13 @@ def main() -> None:
     # Read hook input from stdin
     try:
         hook_input = json.load(sys.stdin)
-    except json.JSONDecodeError:
-        return
+    except (json.JSONDecodeError, Exception):
+        sys.exit(0)
 
     # Only process Bash tool calls
     tool_name = hook_input.get("tool_name", "")
     if tool_name != "Bash":
-        return
+        sys.exit(0)
 
     # Get command and output
     tool_input = hook_input.get("tool_input", {})
@@ -93,7 +93,7 @@ def main() -> None:
     is_gemini = "gemini" in command.lower() and "codex" not in command.lower()
 
     if not (is_codex or is_gemini):
-        return
+        sys.exit(0)
 
     # Extract prompt based on tool type
     if is_codex:
@@ -107,7 +107,7 @@ def main() -> None:
 
     if not prompt:
         # Could not extract prompt, skip logging
-        return
+        sys.exit(0)
 
     # Determine success
     exit_code = tool_response.get("exit_code", 0)
@@ -126,15 +126,14 @@ def main() -> None:
 
     log_entry(entry)
 
-    # Output notification (shown to user via hook output)
-    print(
-        json.dumps(
-            {
-                "result": "continue",
-                "message": f"[LOG] {tool.capitalize()} call logged to .claude/logs/cli-tools.jsonl",
-            }
-        )
-    )
+    # Output notification via hookSpecificOutput
+    json.dump({
+        "hookSpecificOutput": {
+            "hookEventName": "PostToolUse",
+            "additionalContext": f"[LOG] {tool.capitalize()} call logged to .claude/logs/cli-tools.jsonl"
+        }
+    }, sys.stdout)
+    sys.exit(0)
 
 
 if __name__ == "__main__":
