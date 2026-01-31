@@ -7,6 +7,11 @@
         "hooks": [
           {
             "type": "command",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/auto-create-pr.py\"",
+            "timeout": 60
+          },
+          {
+            "type": "command",
             "command": "\"$CLAUDE_PROJECT_DIR/.venv/bin/python\" \"$CLAUDE_PROJECT_DIR/.claude/hooks/load-memories.py\"",
             "timeout": 5
           },

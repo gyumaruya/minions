@@ -58,3 +58,4 @@ logs/
 
 # Jupyter
 .ipynb_checkpoints/
+.claude/.session-pr-created
