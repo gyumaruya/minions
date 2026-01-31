@@ -22,9 +22,13 @@ copilot -p "サブエージェントを活用して。サブエージェント�
 {your prompt}" --model claude-sonnet-4 --allow-all --silent 2>/dev/null
 ```
 
-- `--model claude-sonnet-4` — Use Claude Sonnet 4 (free tier) for main agent
+- `--model claude-sonnet-4` (or `--model sonnet`) — Use Claude Sonnet 4 (free tier) for main agent
 - `--allow-all` — Enable subagent tool execution
 - `--silent` — Clean output for integration
+
+**モデル名の指定方法:**
+- フルネーム: `claude-sonnet-4`, `claude-opus-4.5`, `claude-haiku-4`
+- 短縮形: `sonnet`, `opus`, `haiku`（どちらでも使用可能）
 
 ### Prompt Template (REQUIRED)
 
@@ -95,25 +99,31 @@ Escalate to specialized agents:
 # Standard usage (ALWAYS use this pattern)
 copilot -p "サブエージェントを活用して。サブエージェントにはclaude-opus-4.5を使うようにして。
 
+your prompt" --model sonnet --allow-all --silent 2>/dev/null
+
+# Or using full model name
+copilot -p "サブエージェントを活用して。サブエージェントにはclaude-opus-4.5を使うようにして。
+
 your prompt" --model claude-sonnet-4 --allow-all --silent 2>/dev/null
 
 # Interactive mode with subagent
-copilot --model claude-sonnet-4 --allow-all
+copilot --model sonnet --allow-all
 
 # Resume last session
-copilot --continue --model claude-sonnet-4 --allow-all
+copilot --continue --model sonnet --allow-all
 ```
 
 ## Model Selection
 
-**Default: `claude-sonnet-4`** — Free tier main agent + Opus 4.5 subagents.
+**Default: `claude-sonnet-4` (or `sonnet`)** — Free tier main agent + Opus 4.5 subagents.
 
-| Model | Role | Cost |
-|-------|------|------|
-| `claude-sonnet-4` | **Main agent (default)** | Free |
-| `claude-opus-4.5` | Subagent (via prompt) | Paid |
-| `gpt-5.2-codex` | Alternative if needed | Paid |
-| `gemini-3-pro-preview` | Large context needs | Paid |
+| Model (Full Name) | Short Name | Role | Cost |
+|-------------------|------------|------|------|
+| `claude-sonnet-4` | `sonnet` | **Main agent (default)** | Free |
+| `claude-opus-4.5` | `opus` | Subagent (via prompt) | Paid |
+| `claude-haiku-4` | `haiku` | Lightweight tasks | Free |
+| `gpt-5.2-codex` | N/A | Alternative if needed | Paid |
+| `gemini-3-pro-preview` | N/A | Large context needs | Paid |
 
 ## Integration Pattern
 
@@ -127,7 +137,7 @@ Task tool parameters:
 
     copilot -p "サブエージェントを活用して。サブエージェントにはclaude-opus-4.5を使うようにして。
 
-    {query}" --model claude-sonnet-4 --allow-all --silent 2>/dev/null
+    {query}" --model sonnet --allow-all --silent 2>/dev/null
 
     Return concise summary of the response.
 ```
@@ -137,7 +147,7 @@ For quick queries, direct invocation is acceptable:
 ```bash
 copilot -p "サブエージェントを活用して。サブエージェントにはclaude-opus-4.5を使うようにして。
 
-brief question" --model claude-sonnet-4 --allow-all --silent 2>/dev/null
+brief question" --model sonnet --allow-all --silent 2>/dev/null
 ```
 
 ## Language Protocol

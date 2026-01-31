@@ -1,7 +1,6 @@
-# Agent Hierarchy System
+# Agent Hierarchy System (2-Tier)
 
-階層型マルチエージェントシステム。上位エージェントが下位エージェントに許可を委譲し、
-ユーザー確認なしで動作できるようにする。
+2層階層型マルチエージェントシステム。Conductor が Musician に委譲して作業を進める。
 
 ## 階層構造
 
@@ -9,29 +8,27 @@
 User (ユーザー)
      │
      ▼ 指示
-┌──────────────────┐
-│    CONDUCTOR     │ ← 全体統括（許可: ALL）
-│     (指揮者)     │
-└────────┬─────────┘
-         │ 許可を委譲
-         ▼
-┌──────────────────┐
-│  SECTION LEADER  │ ← タスク管理（許可: Read/Write/Edit/Bash/Task）
-│(セクションリーダー)│
-└────────┬─────────┘
-         │ 許可を委譲
-         ▼
-┌──────────────────┐
-│     MUSICIAN     │ ← 実行（許可: Read/Write/Edit/SafeBash）
-│     (演奏者)     │
-└──────────────────┘
+┌──────────────────────────────────┐
+│   CONDUCTOR: Leonardo da Vinci   │ ← 統合的ビジョン（指揮・計画）
+│   "Simplicity is the ultimate    │
+│    sophistication."              │
+└────────────┬─────────────────────┘
+             │ 許可を委譲
+             ▼
+┌──────────────────────────────────┐
+│   MUSICIAN: Richard Feynman      │ ← 実行（手を動かす）
+│   "Don't fool yourself."         │
+│   好奇心と実践                    │
+└──────────────────────────────────┘
 ```
+
+**Note**: Section Leader（John von Neumann）は将来の拡張オプション。現在は2層で運用。
 
 ## 許可の委譲ルール
 
-### Conductor → Section Leader
+### Conductor → Musician
 
-Conductor は Section Leader に全権限を委譲できる:
+Conductor は Musician に全権限を委譲できる:
 
 - `Read(*)`
 - `Edit(*)`
@@ -43,11 +40,9 @@ Conductor は Section Leader に全権限を委譲できる:
 - `WebFetch(*)`
 - `WebSearch(*)`
 
-### Section Leader → Musician
+### Musician
 
-Section Leader は Musician に制限された権限を委譲:
-
-- `Read(*)`
+Musician は最下層エージェントであり、サブエージェントを spawn できない
 - `Edit(*)`
 - `Write(*)`
 - `Glob(*)`
@@ -67,8 +62,8 @@ Task tool parameters:
 - subagent_type: "general-purpose"
 - prompt: |
     ## Hierarchy Context
-    Parent: conductor (or section_leader)
-    Role: section_leader (or musician)
+    Parent: conductor
+    Role: musician
 
     ## Task
     {タスク内容}
@@ -76,16 +71,16 @@ Task tool parameters:
 
 ### 2. 許可は自動的に継承される
 
-親エージェントが spawn すると、`hierarchy-permissions.py` フックが
-子エージェントに適切な許可を付与する。
+Conductor が Musician を spawn すると、適切な許可が自動的に付与される。
 
 ## 指示書
 
 各階層のエージェントには詳細な指示書がある:
 
 - `.claude/agents/instructions/conductor.md`
-- `.claude/agents/instructions/section_leader.md`
 - `.claude/agents/instructions/musician.md`
+
+**Note**: `section_leader.md` は将来の拡張用に保持
 
 ## ペルソナ（万能天才路線）
 
@@ -93,20 +88,18 @@ Task tool parameters:
 
 | Role | Historical Figure | Philosophy |
 |------|-------------------|------------|
-| Conductor | **Leonardo da Vinci** | "Simplicity is the ultimate sophistication." |
-| Section Leader | **John von Neumann** | 論理的分解と最適化 |
+| Conductor | **Leonardo da Vinci** | "Simplicity is the ultimate sophistication." 統合的ビジョン |
 | Musician | **Richard Feynman** | "Don't fool yourself." 好奇心と実践 |
 
-### 連携イメージ
+**Note**: Section Leader（John von Neumann）は将来の拡張用に保持。
+
+### 連携イメージ（2層）
 
 ```
-ダ・ヴィンチ（統合的ビジョン）
-    │ 「この機能は芸術と科学の融合だ。全体像を示す」
+ダ・ヴィンチ（Conductor）
+    │ 「この機能の全体像を示す。君に実装を任せる」
     ▼
-フォン・ノイマン（論理的分解）
-    │ 「最適な並列度は3。タスクA,B,Cに分解する」
-    ▼
-ファインマン（実践的実装）
+ファインマン（Musician）
     「わからないなら手を動かす。やってみよう！」
 ```
 
@@ -119,38 +112,35 @@ Task tool parameters:
 
 ### Conductor
 
-- **自分でタスク実行禁止** → Section Leader に委譲
-- **Edit/Write 直接使用禁止** → `enforce-hierarchy.py` がブロック
-- Musician への直接指示禁止 → Section Leader 経由
-
-### Section Leader
-
-- **自分でタスク実行禁止** → Musician に委譲
-- **Edit/Write 直接使用禁止** → `enforce-hierarchy.py` がブロック
-- ユーザーへの直接報告禁止 → Conductor 経由
+- **過度な直接作業禁止** → `enforce-delegation.py` が警告・ブロック
+  - 連続3回の作業ツール使用で警告
+  - 連続5回の作業ツール使用でブロック
+- 委譲すべきタスクは Musician へ Task ツールで委譲
 
 ### Musician
 
-- サブエージェント spawn 禁止
-- ユーザーへの直接連絡禁止 → Section Leader 経由
+- サブエージェント spawn 禁止（最下層エージェント）
+- 制限なし（自由に作業可能）
 
 ## 強制フック
 
-### `enforce-hierarchy.py`
+### `enforce-delegation.py`
 
-Conductor/Section Leader が直接 Edit/Write を使おうとすると**ブロック**:
+Conductor が委譲なしで連続作業すると警告・ブロック:
 
-```
-⛔ 階層違反: Conductor（指揮者）は直接ファイルを編集できません。
+**動作:**
+- 連続3回の作業ツール使用 → ⚠ 警告
+- 連続5回の作業ツール使用 → ⛔ ブロック
 
-【正しい方法】
-- Task ツールでサブエージェント（Musician）を spawn して委譲
-- または /delegate スキルを使用
-```
+**作業ツール**: `Edit`, `Write`, `Bash`, `WebFetch`, `WebSearch`
+
+**リセット条件:**
+- Task ツールで Musician へ委譲するとカウンターリセット
+- 10分間作業なしでカウンターリセット
 
 ### 例外（編集可能なファイル）
 
-以下は Conductor/Section Leader でも編集可能:
+以下は Conductor でもカウントされない（自由に編集可能）:
 
 - `.claude/` 配下の設定・ドキュメント
 - `memory/` 配下
@@ -162,11 +152,12 @@ Conductor/Section Leader が直接 Edit/Write を使おうとすると**ブロ�
 
 ```
 /delegate README.md を更新して
-/delegate --to section_leader 認証システムを実装
 /delegate --parallel テスト1 | テスト2 | テスト3
 ```
 
 → 詳細: `.claude/skills/delegate/SKILL.md`
+
+**Note**: `--to section_leader` オプションは将来の拡張用
 
 ## 実装
 

@@ -10,6 +10,8 @@ Triggers when:
 If a PR is open, automatically pushes without asking permission.
 """
 
+from __future__ import annotations
+
 import json
 import subprocess
 import sys
@@ -81,16 +83,13 @@ def is_successful(output: str, exit_code: int) -> bool:
 
 
 def has_uncommitted_changes() -> bool:
-    """Check if there are uncommitted changes in jj."""
+    """Check if there are uncommitted changes in git."""
     try:
         result = subprocess.run(
-            ["jj", "status"],
-            capture_output=True,
-            text=True,
-            timeout=5
+            ["git", "status", "--porcelain"], capture_output=True, text=True, timeout=5
         )
-        # If status shows changes, return True
-        return "Working copy changes" in result.stdout or "Modified" in result.stdout
+        # If status has output, there are changes
+        return bool(result.stdout.strip())
     except Exception:
         return False
 
@@ -99,17 +98,13 @@ def get_current_branch() -> str | None:
     """Get the current feature branch name."""
     try:
         result = subprocess.run(
-            ["jj", "bookmark", "list"],
+            ["git", "branch", "--show-current"],
             capture_output=True,
             text=True,
-            timeout=5
+            timeout=5,
         )
-        for line in result.stdout.split("\n"):
-            if "feature/" in line and "@origin" not in line and "*" in line:
-                parts = line.split(":")
-                if parts:
-                    return parts[0].strip().rstrip("*").strip()
-        return None
+        branch = result.stdout.strip()
+        return branch if branch else None
     except Exception:
         return None
 
@@ -121,7 +116,7 @@ def has_open_pr() -> bool:
             ["gh", "pr", "list", "--state", "open", "--json", "number,headRefName"],
             capture_output=True,
             text=True,
-            timeout=10
+            timeout=10,
         )
         prs = json.loads(result.stdout) if result.stdout else []
         return len(prs) > 0
@@ -163,8 +158,8 @@ def main():
                     "hookEventName": "PostToolUse",
                     "additionalContext": (
                         "[Auto-Push] PR is open. Verification passed with uncommitted changes. "
-                        "Push automatically: `jj describe -m \"...\" && jj git push`"
-                    )
+                        'Push automatically: `git add -A && git commit -m "..." && git push`'
+                    ),
                 }
             }
         else:
@@ -173,8 +168,8 @@ def main():
                     "hookEventName": "PostToolUse",
                     "additionalContext": (
                         "[PR Required] No open PR. Create feature branch and PR first: "
-                        "`jj git push -c @ && gh pr create --draft`"
-                    )
+                        "`git push -u origin <branch> && gh pr create --draft`"
+                    ),
                 }
             }
         print(json.dumps(result))

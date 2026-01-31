@@ -5,6 +5,8 @@ Hook: Ensure noreply email is used for git/jj commits.
 Runs before jj/git commands to ensure the correct email is configured.
 """
 
+from __future__ import annotations
+
 import json
 import subprocess
 import sys
@@ -12,47 +14,31 @@ import sys
 NOREPLY_EMAIL = "gyumaruya@users.noreply.github.com"
 
 
-def get_current_email(tool: str) -> str | None:
-    """Get current email config for jj or git."""
+def get_current_email() -> str | None:
+    """Get current email config for git."""
     try:
-        if tool == "jj":
-            result = subprocess.run(
-                ["jj", "config", "get", "user.email"],
-                capture_output=True,
-                text=True,
-                timeout=2,
-            )
-        else:
-            result = subprocess.run(
-                ["git", "config", "user.email"],
-                capture_output=True,
-                text=True,
-                timeout=2,
-            )
+        result = subprocess.run(
+            ["git", "config", "user.email"],
+            capture_output=True,
+            text=True,
+            timeout=2,
+        )
         return result.stdout.strip() if result.returncode == 0 else None
     except Exception:
         return None
 
 
-def set_email(tool: str) -> None:
-    """Set email to noreply for jj or git (repo-local config)."""
+def set_email() -> None:
+    """Set email to noreply for git (repo-local config)."""
     try:
-        if tool == "jj":
-            subprocess.run(
-                ["jj", "config", "set", "--repo", "user.email", NOREPLY_EMAIL],
-                capture_output=True,
-                timeout=2,
-            )
-        else:
-            # Use repo-local config instead of --global
-            subprocess.run(
-                ["git", "config", "user.email", NOREPLY_EMAIL],
-                capture_output=True,
-                timeout=2,
-            )
+        subprocess.run(
+            ["git", "config", "user.email", NOREPLY_EMAIL],
+            capture_output=True,
+            timeout=2,
+        )
     except Exception as e:
         # Best-effort: don't block the hook if setting the email fails
-        print(f"Warning: failed to set {tool} email to noreply: {e}", file=sys.stderr)
+        print(f"Warning: failed to set git email to noreply: {e}", file=sys.stderr)
 
 
 def main() -> None:
@@ -71,27 +57,20 @@ def main() -> None:
 
     command = tool_input.get("command", "") if isinstance(tool_input, dict) else ""
 
-    # Check if it's a jj or git command that might commit
-    is_jj_commit = command.startswith("jj ") and any(
-        kw in command for kw in ["commit", "describe", "new", "push", "git push"]
-    )
+    # Check if it's a git command that might commit
     is_git_commit = command.startswith("git ") and any(
         kw in command for kw in ["commit", "push"]
     )
 
-    if not (is_jj_commit or is_git_commit):
+    if not is_git_commit:
         sys.exit(0)
 
     # Check and fix email if needed
-    tool = "jj" if is_jj_commit else "git"
-    current_email = get_current_email(tool)
+    current_email = get_current_email()
 
     # Set email if missing or different from noreply
     if current_email is None or current_email != NOREPLY_EMAIL:
-        set_email(tool)
-        # Also set git email for jj (uses git backend)
-        if tool == "jj":
-            set_email("git")
+        set_email()
 
     # Allow the command
     sys.exit(0)

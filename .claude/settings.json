@@ -51,6 +51,11 @@
             "type": "command",
             "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/enforce-no-merge.py\"",
             "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/prevent-secrets-commit.py\"",
+            "timeout": 5
           }
         ]
       },
@@ -80,6 +85,16 @@
           {
             "type": "command",
             "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/suggest-gemini-research.py\"",
+            "timeout": 5
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write|Bash|WebFetch|WebSearch|Task",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/enforce-delegation.py\"",
             "timeout": 5
           }
         ]
@@ -172,7 +187,6 @@
       "Bash(mv:*)",
       "Bash(chmod:*)",
       "Bash(git:*)",
-      "Bash(jj:*)",
       "Bash(python:*)",
       "Bash(python3:*)",
       "Bash(uv:*)",

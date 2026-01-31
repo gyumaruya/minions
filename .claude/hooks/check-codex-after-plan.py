@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+from __future__ import annotations
 """
 PostToolUse hook: Suggest Codex review after Plan tasks.
 
