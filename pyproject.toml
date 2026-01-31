@@ -1,10 +1,15 @@
 [project]
-name = "my-project"
+name = "minions"
 version = "0.1.0"
-description = "LLM/Agent development project"
+description = "Multi-Agent Orchestra Framework"
 readme = "README.md"
 requires-python = ">=3.11"
-dependencies = []
+dependencies = [
+    "mem0ai>=0.1",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/minions"]
 
 [project.optional-dependencies]
 dev = [
@@ -72,3 +77,5 @@ format = "ruff format ."
 typecheck = "mypy src/"
 test = "pytest"
 all = ["lint", "format", "typecheck", "test"]
+orchestra = "bash scripts/start-orchestra.sh"
+dashboard = "bash scripts/dashboard.sh"

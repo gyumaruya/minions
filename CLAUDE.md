@@ -123,3 +123,69 @@ Bash("codex exec ... '1文で答えて'")
 
 - **思考・コード**: 英語
 - **ユーザー対話**: 日本語
+- **ユーザー向けコンテンツ**: 日本語（PR、コミット、エラーメッセージ）
+
+**ENFORCED BY HOOK**: `.claude/hooks/enforce-japanese.py` が PR/コミット作成時に日本語を強制
+
+---
+
+## Memory Layer (自己改善) ✓ 実装済み
+
+ユーザーからの指示・修正・学習を**自動で**記憶し、自己改善に活用する。
+
+### 自動動作
+
+| タイミング | 動作 |
+|-----------|------|
+| **セッション開始** | 過去の記憶をコンテキストに自動注入 |
+| **ユーザー修正時** | 「〜にして」等のパターンを自動検出・記憶 |
+
+### 記憶の保存先
+
+```
+~/minions/.claude/memory/events.jsonl
+```
+
+### カテゴリ
+
+| Category | 用途 | 自動検出 |
+|----------|------|---------|
+| `preference` | ユーザーの好み | ✓「〜にして」「〜がいい」 |
+| `workflow` | ワークフローパターン | ✓「いつも〜」「毎回〜」 |
+| `decision` | 設計判断 | - |
+| `error` | エラーと解決策 | - |
+
+### 使い方
+
+```bash
+# CLI
+uv run python -m minions.memory.cli add "PRは日本語で書く" --type preference
+uv run python -m minions.memory.cli search "日本語"
+uv run python -m minions.memory.cli list
+
+# Skill
+/remember <学習内容>     # 記憶を保存
+/remember list          # 一覧表示
+/remember search <kw>   # 検索
+```
+
+### 自動学習トリガー ✓ 実装済み
+
+以下のパターンを自動検出して記憶:
+
+| パターン | 例 | 記憶タイプ |
+|---------|-----|-----------|
+| `〜にして` | 「PRは日本語にして」 | preference |
+| `〜に変えて` | 「英語に変えて」 | preference |
+| `〜は違う` | 「それは違う」 | preference |
+| `いつも〜` | 「いつもテスト先に」 | workflow |
+| `毎回〜` | 「毎回レビュー」 | workflow |
+
+### Hooks（自動実行）
+
+| Hook | 機能 |
+|------|------|
+| `load-memories.py` | セッション開始時に記憶を読み込み |
+| `auto-learn.py` | ユーザー修正を自動検出・記憶 |
+
+→ 詳細: `.claude/docs/MEMORY_SYSTEM.md`

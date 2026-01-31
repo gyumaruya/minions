@@ -173,7 +173,7 @@ def main():
                     "hookEventName": "PostToolUse",
                     "additionalContext": (
                         "[PR Required] No open PR. Create feature branch and PR first: "
-                        "`jj git push -c @ && gh pr create`"
+                        "`jj git push -c @ && gh pr create --draft`"
                     )
                 }
             }
