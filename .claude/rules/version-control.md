@@ -4,6 +4,14 @@
 
 jj is a Git-compatible VCS with a simpler mental model and better conflict handling.
 
+## ⚠️ CRITICAL RULES
+
+| Rule | Command |
+|------|---------|
+| **PR は必ず draft で作成** | `gh pr create --draft ...` |
+| **main への直接プッシュ禁止** | Feature Branch → PR → Merge |
+| **マージ済みブランチに再プッシュ禁止** | 新規ブランチ・新規 PR を作成 |
+
 ## Why jj
 
 - Automatic working copy commit (no staging area)

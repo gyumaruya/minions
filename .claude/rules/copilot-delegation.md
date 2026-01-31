@@ -17,18 +17,32 @@
 **ALWAYS use Copilot CLI with these options:**
 
 ```bash
-copilot -p "your prompt" --model claude-opus-4.5 --allow-all --silent 2>/dev/null
+copilot -p "サブエージェントを活用して。サブエージェントにはclaude-opus-4.5を使うようにして。
+
+{your prompt}" --model claude-sonnet-4 --allow-all --silent 2>/dev/null
 ```
 
-- `--model claude-opus-4.5` — Use Claude Opus 4.5 for subagent reasoning
+- `--model claude-sonnet-4` — Use Claude Sonnet 4 (free tier) for main agent
 - `--allow-all` — Enable subagent tool execution
 - `--silent` — Clean output for integration
+
+### Prompt Template (REQUIRED)
+
+**必ずプロンプトの先頭に以下を追加:**
+
+```
+サブエージェントを活用して。サブエージェントにはclaude-opus-4.5を使うようにして。
+
+{actual task description}
+```
+
+これにより、メインエージェント（Sonnet 4、無料枠）がサブエージェント（Opus 4.5）を活用してタスクを実行する。
 
 ## About Copilot CLI
 
 Copilot CLI (`copilot`) excels at:
-- **Cost-effective execution** — Subagent architecture reduces token costs
-- **Internal subagent orchestration** — Spawns subagents with Claude Opus 4.5
+- **Cost-effective execution** — Main agent uses free Sonnet 4, subagents use Opus 4.5
+- **Internal subagent orchestration** — Spawns subagents with Claude Opus 4.5 for deep reasoning
 - **GitHub integration** — Deep integration with GitHub workflows
 - **Session persistence** — Resume previous sessions with `--continue`
 
@@ -79,24 +93,27 @@ Escalate to specialized agents:
 
 ```bash
 # Standard usage (ALWAYS use this pattern)
-copilot -p "your prompt" --model claude-opus-4.5 --allow-all --silent 2>/dev/null
+copilot -p "サブエージェントを活用して。サブエージェントにはclaude-opus-4.5を使うようにして。
+
+your prompt" --model claude-sonnet-4 --allow-all --silent 2>/dev/null
 
 # Interactive mode with subagent
-copilot --model claude-opus-4.5 --allow-all
+copilot --model claude-sonnet-4 --allow-all
 
 # Resume last session
-copilot --continue --model claude-opus-4.5 --allow-all
+copilot --continue --model claude-sonnet-4 --allow-all
 ```
 
 ## Model Selection
 
-**Default: `claude-opus-4.5`** — Always use unless specific reason not to.
+**Default: `claude-sonnet-4`** — Free tier main agent + Opus 4.5 subagents.
 
-| Model | When to Use |
-|-------|-------------|
-| `claude-opus-4.5` | **Default** — Deep reasoning, subagent orchestration |
-| `gpt-5.2-codex` | Code-specific tasks if needed |
-| `gemini-3-pro-preview` | Large context needs |
+| Model | Role | Cost |
+|-------|------|------|
+| `claude-sonnet-4` | **Main agent (default)** | Free |
+| `claude-opus-4.5` | Subagent (via prompt) | Paid |
+| `gpt-5.2-codex` | Alternative if needed | Paid |
+| `gemini-3-pro-preview` | Large context needs | Paid |
 
 ## Integration Pattern
 
@@ -108,7 +125,9 @@ Task tool parameters:
 - prompt: |
     Use Copilot CLI to {task}.
 
-    copilot -p "{query}" --model claude-opus-4.5 --allow-all --silent 2>/dev/null
+    copilot -p "サブエージェントを活用して。サブエージェントにはclaude-opus-4.5を使うようにして。
+
+    {query}" --model claude-sonnet-4 --allow-all --silent 2>/dev/null
 
     Return concise summary of the response.
 ```
@@ -116,7 +135,9 @@ Task tool parameters:
 For quick queries, direct invocation is acceptable:
 
 ```bash
-copilot -p "brief question" --model claude-opus-4.5 --allow-all --silent 2>/dev/null
+copilot -p "サブエージェントを活用して。サブエージェントにはclaude-opus-4.5を使うようにして。
+
+brief question" --model claude-sonnet-4 --allow-all --silent 2>/dev/null
 ```
 
 ## Language Protocol
