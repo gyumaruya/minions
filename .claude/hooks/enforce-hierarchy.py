@@ -5,7 +5,6 @@ PreToolUse hook: Enforce agent hierarchy.
 Prevents upper-level agents (Conductor, Section Leader) from doing
 direct implementation work. They must delegate to lower-level agents.
 """
-
 from __future__ import annotations
 
 import json
@@ -19,10 +18,8 @@ def get_agent_role() -> str:
     role = os.environ.get("AGENT_ROLE", "").lower()
     if role in ("conductor", "section_leader", "musician"):
         return role
-
-    # Default: subagents are Musicians (safe default)
-    # Main session (Conductor) should explicitly set AGENT_ROLE=conductor
-    return "musician"
+    # Default: main session is Conductor
+    return "conductor"
 
 
 def is_allowed_file(file_path: str) -> bool:
@@ -74,11 +71,7 @@ def main():
 
     # Conductor and Section Leader should NOT directly edit implementation files
     if role in ("conductor", "section_leader"):
-        role_name = (
-            "Conductor（指揮者）"
-            if role == "conductor"
-            else "Section Leader（セクションリーダー）"
-        )
+        role_name = "Conductor（指揮者）" if role == "conductor" else "Section Leader（セクションリーダー）"
 
         message = f"""⛔ 階層違反: {role_name} は直接ファイルを編集できません。
 
@@ -87,16 +80,13 @@ Task ツールでサブエージェント（Musician）を spawn して委譲し
 
 → 詳細: .claude/rules/agent-hierarchy.md"""
 
-        json.dump(
-            {
-                "hookSpecificOutput": {
-                    "hookEventName": "PreToolUse",
-                    "permissionDecision": "deny",
-                    "permissionDecisionReason": message,
-                }
-            },
-            sys.stdout,
-        )
+        json.dump({
+            "hookSpecificOutput": {
+                "hookEventName": "PreToolUse",
+                "permissionDecision": "deny",
+                "permissionDecisionReason": message
+            }
+        }, sys.stdout)
         sys.exit(0)
 
     # Unknown role, allow

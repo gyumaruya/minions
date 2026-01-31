@@ -52,14 +52,6 @@ def detect_learning(text: str) -> list[tuple[str, str, str]]:
     """
     learnings = []
 
-    # Skip questions (ends with ? or の？ etc.)
-    if re.search(r"[?？]$|の[?？]$|かな[?？]?$|だい[?？]?$", text.strip()):
-        return learnings
-
-    # Skip too long text (likely conversational, not a directive)
-    if len(text) > 50:
-        return learnings
-
     for pattern, trigger in CORRECTION_PATTERNS:
         match = re.search(pattern, text)
         if match:
@@ -113,16 +105,12 @@ def main() -> None:
 
     # Add system message about learned content
     if saved > 0:
-        json.dump(
-            {
-                "hookSpecificOutput": {
-                    "hookEventName": "UserPromptSubmit",
-                    "additionalContext": f"💡 {saved} 件の学習を記録しました。",
-                }
-            },
-            sys.stdout,
-            ensure_ascii=False,
-        )
+        json.dump({
+            "hookSpecificOutput": {
+                "hookEventName": "UserPromptSubmit",
+                "additionalContext": f"💡 {saved} 件の学習を記録しました。"
+            }
+        }, sys.stdout, ensure_ascii=False)
 
     sys.exit(0)
 

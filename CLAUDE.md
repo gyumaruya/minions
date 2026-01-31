@@ -110,8 +110,6 @@ Bash("codex exec ... '1文で答えて'")
 
 **万能天才路線**: 歴史上の知的巨人をペルソナとして採用。
 
-### 現在の構成（2層）
-
 ```
 User (ユーザー)
      │
@@ -124,19 +122,18 @@ User (ユーザー)
              │ 許可を自動委譲
              ▼
 ┌──────────────────────────────────┐
+│ SECTION LEADER: John von Neumann │ ← 論理的分解・最適化
+│   問題を数学的に分解し、         │
+│   最適な並列度を計算する         │
+└────────────┬─────────────────────┘
+             │ 許可を自動委譲
+             ▼
+┌──────────────────────────────────┐
 │   MUSICIAN: Richard Feynman      │ ← 好奇心と実践
 │   "Don't fool yourself."         │
 │   手を動かして理解する           │
 └──────────────────────────────────┘
 ```
-
-**シンプルな2層構成:**
-- **Conductor** — 統合的ビジョン、タスク分解、全体調整（Leonardo da Vinci）
-- **Musician** — 実装と検証、手を動かす（Richard Feynman）
-
-**将来の拡張オプション:**
-- 中間層（Section Leader / John von Neumann）を追加して3層化も可能
-- 現状は2層で十分なシンプルさを保持
 
 ### 許可の委譲
 
@@ -150,10 +147,8 @@ User (ユーザー)
 | Role | Historical Figure | Philosophy |
 |------|-------------------|------------|
 | Conductor | **Leonardo da Vinci** | 統合的ビジョン、美と機能の融合 |
+| Section Leader | **John von Neumann** | 論理的分解、最適化、並列処理 |
 | Musician | **Richard Feynman** | 好奇心、実践、シンプル化 |
-
-**拡張オプション:**
-| Section Leader | **John von Neumann** | 論理的分解、最適化、並列処理（3層化時）|
 
 → 詳細: `.claude/rules/agent-hierarchy.md`
 → 指示書: `.claude/agents/instructions/`
@@ -178,7 +173,7 @@ User (ユーザー)
 
 ## Tech Stack
 
-- **git** - バージョン管理（main直接プッシュ禁止、シークレット検出あり）
+- **jj** (Jujutsu) - バージョン管理（git直接操作禁止、main直接プッシュ禁止）
 - **Python** / **uv** (pip禁止)
 - **ruff** (lint/format) / **ty** (type check) / **pytest**
 - `poe lint` / `poe test` / `poe all`

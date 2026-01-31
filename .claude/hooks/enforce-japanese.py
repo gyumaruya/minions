@@ -2,19 +2,19 @@
 """
 PreToolUse hook: Enforce Japanese for user-facing content.
 
-Intercepts gh pr create and git commit to ensure
+Intercepts gh pr create, jj describe, git commit and ensures
 titles/messages are in Japanese.
 """
-
 from __future__ import annotations
 
 import json
 import re
 import sys
 
+
 # Commands that create user-facing content
 PR_CREATE_PATTERN = re.compile(r"gh\s+pr\s+create")
-COMMIT_PATTERN = re.compile(r"git\s+commit")
+COMMIT_PATTERN = re.compile(r"(jj\s+describe|git\s+commit)")
 
 
 def contains_japanese(text: str) -> bool:
@@ -23,7 +23,7 @@ def contains_japanese(text: str) -> bool:
         r"[\u3040-\u309F]|"  # Hiragana
         r"[\u30A0-\u30FF]|"  # Katakana
         r"[\u4E00-\u9FFF]|"  # Kanji
-        r"[\uFF00-\uFFEF]"  # Full-width
+        r"[\uFF00-\uFFEF]"   # Full-width
     )
     return bool(japanese_pattern.search(text))
 
@@ -77,16 +77,13 @@ def main() -> None:
 
 日本語に書き換えて再実行してください。"""
 
-        json.dump(
-            {
-                "hookSpecificOutput": {
-                    "hookEventName": "PreToolUse",
-                    "permissionDecision": "deny",
-                    "permissionDecisionReason": message,
-                }
-            },
-            sys.stdout,
-        )
+        json.dump({
+            "hookSpecificOutput": {
+                "hookEventName": "PreToolUse",
+                "permissionDecision": "deny",
+                "permissionDecisionReason": message
+            }
+        }, sys.stdout)
         sys.exit(0)
 
     # Allow

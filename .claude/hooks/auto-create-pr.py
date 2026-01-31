@@ -4,7 +4,6 @@ UserPromptSubmit hook: Auto-create feature branch and draft PR on session start.
 
 Ensures every session has an open PR before any work begins.
 """
-
 from __future__ import annotations
 
 import json
@@ -17,7 +16,9 @@ from datetime import datetime
 def run_cmd(cmd: list[str], timeout: int = 30) -> tuple[bool, str]:
     """Run a command and return (success, output)."""
     try:
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
+        result = subprocess.run(
+            cmd, capture_output=True, text=True, timeout=timeout
+        )
         return result.returncode == 0, result.stdout.strip()
     except Exception as e:
         return False, str(e)
@@ -30,17 +31,10 @@ def get_session_id() -> str:
 
 def get_open_prs() -> list[dict]:
     """Get list of open PRs."""
-    success, output = run_cmd(
-        [
-            "gh",
-            "pr",
-            "list",
-            "--state",
-            "open",
-            "--json",
-            "number,headRefName,title,url",
-        ]
-    )
+    success, output = run_cmd([
+        "gh", "pr", "list", "--state", "open",
+        "--json", "number,headRefName,title,url"
+    ])
     if success and output:
         try:
             return json.loads(output)
@@ -49,31 +43,24 @@ def get_open_prs() -> list[dict]:
     return []
 
 
-def get_short_hash() -> str:
-    """Get current commit short hash for branch naming."""
-    success, output = run_cmd(["git", "rev-parse", "--short", "HEAD"])
+def get_change_id() -> str:
+    """Get current change ID for branch naming."""
+    success, output = run_cmd([
+        "jj", "log", "-r", "@", "--no-graph", "-T", "change_id.short(12)"
+    ])
     if success and output:
         return output.strip()
     return datetime.now().strftime("%Y%m%d%H%M%S")
 
 
 def cleanup_merged_branches() -> None:
-    """Delete local branches for merged PRs and sync with main."""
-    run_cmd(["git", "fetch", "origin"])
+    """Delete local bookmarks for merged PRs and sync with main."""
+    run_cmd(["jj", "git", "fetch"])
 
-    success, output = run_cmd(
-        [
-            "gh",
-            "pr",
-            "list",
-            "--state",
-            "merged",
-            "--json",
-            "headRefName",
-            "--limit",
-            "20",
-        ]
-    )
+    success, output = run_cmd([
+        "gh", "pr", "list", "--state", "merged",
+        "--json", "headRefName", "--limit", "20"
+    ])
     if not success or not output:
         return
 
@@ -82,92 +69,76 @@ def cleanup_merged_branches() -> None:
     except json.JSONDecodeError:
         return
 
-    merged_branches = {
-        pr.get("headRefName") for pr in merged_prs if pr.get("headRefName")
-    }
+    merged_branches = {pr.get("headRefName") for pr in merged_prs if pr.get("headRefName")}
 
-    success, output = run_cmd(["git", "branch"])
+    success, output = run_cmd(["jj", "bookmark", "list"])
     if not success:
         return
 
     for line in output.split("\n"):
-        branch = line.strip().lstrip("* ").strip()
-        if branch in merged_branches and branch != "main":
-            run_cmd(["git", "branch", "-D", branch])
+        if not line.strip():
+            continue
+        bookmark = line.split(":")[0].strip().rstrip("*")
+        if bookmark in merged_branches and bookmark != "main":
+            # Forget the bookmark (removes local tracking without affecting remote)
+            run_cmd(["jj", "bookmark", "forget", bookmark])
 
-    # Sync with main
-    run_cmd(["git", "checkout", "main"])
-    run_cmd(["git", "pull", "origin", "main"])
+    run_cmd(["jj", "rebase", "-d", "main@origin"])
 
 
-def sync_branch_with_pr(branch_name: str) -> bool:
+def sync_bookmark_with_pr(branch_name: str) -> bool:
     """
-    Sync local branch with existing PR branch.
+    Sync local bookmark with existing PR branch.
 
-    Ensures local branch is up-to-date with remote.
+    This ensures the local bookmark points to current commit and tracks the remote.
+    Prevents the "bookmark deleted" problem that causes PR recreation.
     """
-    # Fetch latest
-    run_cmd(["git", "fetch", "origin", branch_name])
-
-    # Checkout or create tracking branch
-    success, _ = run_cmd(["git", "checkout", branch_name])
+    # Step 1: Set local bookmark to current commit (creates if doesn't exist)
+    success, _ = run_cmd(["jj", "bookmark", "set", branch_name, "-r", "@"])
     if not success:
-        # Create tracking branch
-        run_cmd(["git", "checkout", "-b", branch_name, f"origin/{branch_name}"])
+        # Try create if set fails
+        run_cmd(["jj", "bookmark", "create", branch_name, "-r", "@"])
 
-    # Pull latest changes
-    success, _ = run_cmd(["git", "pull", "origin", branch_name])
+    # Step 2: Track the remote bookmark (links local to remote)
+    run_cmd(["jj", "bookmark", "track", branch_name, "--remote=origin"])
+
+    # Step 3: Push to update the remote (with tracking, this updates instead of deletes)
+    success, output = run_cmd([
+        "jj", "git", "push", "--bookmark", branch_name
+    ])
 
     return success
 
 
 def create_branch_and_pr() -> tuple[bool, str, str]:
     """Create a new feature branch and draft PR."""
-    short_hash = get_short_hash()
-    branch_name = f"feature/session-{short_hash}"
+    change_id = get_change_id()
+    branch_name = f"feature/session-{change_id}"
 
-    # Create new branch from main
-    run_cmd(["git", "checkout", "main"])
-    success, _ = run_cmd(["git", "checkout", "-b", branch_name])
+    run_cmd(["jj", "describe", "-m", f"WIP: Session {change_id}"])
+
+    # Step 1: Create or set bookmark
+    success, _ = run_cmd(["jj", "bookmark", "create", branch_name, "-r", "@"])
     if not success:
-        return False, f"Failed to create branch: {branch_name}", ""
+        run_cmd(["jj", "bookmark", "set", branch_name, "-r", "@"])
 
-    # Create initial commit if needed
-    success, output = run_cmd(["git", "status", "--porcelain"])
-    if success and output.strip():
-        # There are uncommitted changes - commit them
-        run_cmd(["git", "add", "-A"])
-        run_cmd(
-            [
-                "git",
-                "commit",
-                "-m",
-                f"WIP: Session {short_hash}\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>",
-            ]
-        )
-
-    # Push branch
-    success, output = run_cmd(["git", "push", "-u", "origin", branch_name])
+    # Step 2: Push with --allow-new for new branches
+    success, output = run_cmd([
+        "jj", "git", "push", "--bookmark", branch_name, "--allow-new"
+    ])
     if not success:
         return False, f"Failed to push: {output}", ""
 
-    # Create PR
-    success, output = run_cmd(
-        [
-            "gh",
-            "pr",
-            "create",
-            "--draft",
-            "--head",
-            branch_name,
-            "--base",
-            "main",
-            "--title",
-            f"WIP: Session {short_hash}",
-            "--body",
-            "🤖 Auto-created draft PR for session.",
-        ]
-    )
+    # Step 3: Track the remote bookmark to prevent future sync issues
+    run_cmd(["jj", "bookmark", "track", branch_name, "--remote=origin"])
+
+    # Step 4: Create the PR
+    success, output = run_cmd([
+        "gh", "pr", "create", "--draft",
+        "--head", branch_name, "--base", "main",
+        "--title", f"WIP: Session {change_id}",
+        "--body", "🤖 Auto-created draft PR for session."
+    ])
 
     if success:
         pr_url = output.strip().split("\n")[-1] if output else ""
@@ -180,7 +151,7 @@ def is_marker_valid(marker_file: str, session_id: str) -> bool:
     if not os.path.exists(marker_file):
         return False
     try:
-        with open(marker_file) as f:
+        with open(marker_file, "r") as f:
             content = f.read().strip()
             if ":" in content:
                 stored_session = content.split(":")[0]
@@ -199,28 +170,16 @@ def write_marker(marker_file: str, session_id: str, pr_info: str) -> None:
         pass
 
 
-def create_conductor_marker(project_dir: str) -> None:
-    """Create conductor session marker with PPID."""
-    from pathlib import Path
-
-    marker_path = Path(project_dir) / ".claude" / ".conductor-session"
-    marker_data = {"ppid": os.getppid(), "created_at": datetime.now().isoformat()}
-    marker_path.write_text(json.dumps(marker_data), encoding="utf-8")
-
-
 def main():
     # Read input from stdin (correct way)
     try:
-        json.load(sys.stdin)
+        hook_input = json.load(sys.stdin)
     except (json.JSONDecodeError, Exception):
-        pass
+        hook_input = {}
 
     project_dir = os.environ.get("CLAUDE_PROJECT_DIR", ".")
     marker_file = os.path.join(project_dir, ".claude", ".session-pr-created")
     session_id = get_session_id()
-
-    # Create conductor marker at session start
-    create_conductor_marker(project_dir)
 
     # Skip if marker exists AND is for current session
     if is_marker_valid(marker_file, session_id):
@@ -244,22 +203,20 @@ def main():
         pr_number = pr.get("number", "")
         pr_url = pr.get("url", "")
 
-        # Sync local branch with the PR branch
+        # IMPORTANT: Sync local bookmark with the PR branch
+        # This prevents the "bookmark deleted" problem that closes PRs
         if pr_branch:
-            sync_branch_with_pr(pr_branch)
+            sync_bookmark_with_pr(pr_branch)
 
         write_marker(marker_file, session_id, f"existing:{pr_branch}:#{pr_number}")
 
         # Output additional context for Claude
-        json.dump(
-            {
-                "hookSpecificOutput": {
-                    "hookEventName": "UserPromptSubmit",
-                    "additionalContext": f"📋 既存のPR #{pr_number} を使用（ブランチ同期済み）: {pr_url}",
-                }
-            },
-            sys.stdout,
-        )
+        json.dump({
+            "hookSpecificOutput": {
+                "hookEventName": "UserPromptSubmit",
+                "additionalContext": f"📋 既存のPR #{pr_number} を使用（ブックマーク同期済み）: {pr_url}"
+            }
+        }, sys.stdout)
         sys.exit(0)
 
     # No open PR - create one
@@ -267,25 +224,19 @@ def main():
 
     if success:
         write_marker(marker_file, session_id, f"created:{message}")
-        json.dump(
-            {
-                "hookSpecificOutput": {
-                    "hookEventName": "UserPromptSubmit",
-                    "additionalContext": f"✅ Draft PR を自動作成: {pr_url}",
-                }
-            },
-            sys.stdout,
-        )
+        json.dump({
+            "hookSpecificOutput": {
+                "hookEventName": "UserPromptSubmit",
+                "additionalContext": f"✅ Draft PR を自動作成: {pr_url}"
+            }
+        }, sys.stdout)
     else:
-        json.dump(
-            {
-                "hookSpecificOutput": {
-                    "hookEventName": "UserPromptSubmit",
-                    "additionalContext": f"⚠️ PR自動作成に失敗: {message}",
-                }
-            },
-            sys.stdout,
-        )
+        json.dump({
+            "hookSpecificOutput": {
+                "hookEventName": "UserPromptSubmit",
+                "additionalContext": f"⚠️ PR自動作成に失敗: {message}"
+            }
+        }, sys.stdout)
 
     sys.exit(0)
 
