@@ -56,12 +56,13 @@ GEMINI_TRIGGERS = {
 }
 
 # Tasks that should stay with Claude directly (no delegation needed)
+# Note: Limited to jj/git commands, NOT GitHub operations (those go to Copilot)
 DIRECT_TASKS = [
-    "commit", "push", "pull",
-    "コミット", "プッシュ",
+    "jj commit", "jj push", "jj status", "jj log", "jj diff",
+    "git commit", "git push", "git status", "git log", "git diff",
+    "コミットして", "プッシュして",
     "ファイル作成", "ファイル編集",
     "create file", "edit file",
-    "status", "log", "diff",
 ]
 
 
@@ -69,25 +70,27 @@ def detect_agent(prompt: str) -> tuple[str | None, str]:
     """Detect which agent should handle this prompt.
 
     Returns:
-        (agent_name, trigger) or (None, "") if should use Copilot as default
+        A tuple of (agent_name, trigger) where agent_name is one of
+        {"direct", "codex", "gemini", "copilot"}, or (None, "") if no
+        delegation should occur (short prompts).
     """
     prompt_lower = prompt.lower()
 
     # Check if this is a direct task (no delegation)
     for task in DIRECT_TASKS:
-        if task in prompt_lower:
+        if task.lower() in prompt_lower:
             return "direct", task
 
     # Priority 1: Check Codex triggers (important tasks)
     for triggers in CODEX_TRIGGERS.values():
         for trigger in triggers:
-            if trigger in prompt_lower:
+            if trigger.lower() in prompt_lower:
                 return "codex", trigger
 
     # Priority 2: Check Gemini triggers (specialized tasks)
     for triggers in GEMINI_TRIGGERS.values():
         for trigger in triggers:
-            if trigger in prompt_lower:
+            if trigger.lower() in prompt_lower:
                 return "gemini", trigger
 
     # Priority 3: Everything else -> Copilot (cost-effective)

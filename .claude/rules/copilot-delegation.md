@@ -30,7 +30,7 @@ Copilot CLI (`copilot`) excels at:
 - **Cost-effective execution** — Subagent architecture reduces token costs
 - **Internal subagent orchestration** — Spawns subagents with Claude Opus 4.5
 - **GitHub integration** — Deep integration with GitHub workflows
-- **Session persistence** — Resume previous sessions with `--resume`
+- **Session persistence** — Resume previous sessions with `--continue`
 
 **Limitations:**
 - Not ideal for deep design reasoning (use Codex)
@@ -127,9 +127,12 @@ copilot -p "brief question" --model claude-opus-4.5 --allow-all --silent 2>/dev/
 
 ## Setup
 
-Copilot CLI is installed at `/opt/homebrew/bin/copilot`.
+Copilot CLI のインストールパスは環境によって異なります。
 
 ```bash
+# Check installation path
+which copilot  # or: command -v copilot
+
 # Check version
 copilot --version
 
@@ -139,3 +142,5 @@ copilot update
 # Check for GitHub auth
 gh auth status
 ```
+
+**Note:** macOS + Homebrew 環境では `/opt/homebrew/bin/copilot` など。
