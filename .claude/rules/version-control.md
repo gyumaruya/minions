@@ -57,14 +57,18 @@ jj describe -m "Add feature X"
 jj new
 ```
 
-### Push to Remote
+### Push to Remote (Feature Branch)
 
 ```bash
-# Move bookmark to current commit
-jj bookmark set main -r @-
+# Create feature branch and push
+jj git push -c @
 
-# Push
-jj git push
+# Or with explicit bookmark
+jj bookmark create feature/xxx -r @
+jj git push --bookmark feature/xxx
+
+# Then create PR
+gh pr create --title "..." --body "..."
 ```
 
 ### Sync with Remote
@@ -86,6 +90,9 @@ jj rebase -d main@origin
 
 ## Important Notes
 
+- **⛔ Do NOT push directly to main** — Always use Feature Branch → PR → Merge
+- **⛔ Always work with an open PR** — Create PR before starting work
+- **Auto-push enabled** — When PR is open, push automatically without asking
 - **Do NOT use raw git commands** unless necessary for specific git-only features
 - Working copy (`@`) is always a commit in progress
 - Parent of working copy (`@-`) is usually what you want to push
@@ -134,19 +141,18 @@ jj op undo <op-id>
 ```
 変更作成 → 動作確認 → 成功 → 自動コミット提案
                          ↓
-              jj describe -m "..." && jj bookmark set main -r @ && jj git push
+              jj describe -m "..." && jj git push -c @ && gh pr create
 ```
 
 ### Quick Ship Command
 
-動作確認後、以下で即座にプッシュ:
+動作確認後、以下で Feature Branch → PR:
 
 ```bash
-# Feature branch の場合
-jj git push --bookmark <branch-name>
-
-# Main に直接マージする場合
-jj bookmark set main -r @ && jj git push
+# Feature branch 作成 & プッシュ & PR 作成
+jj describe -m "..."
+jj git push -c @
+gh pr create --title "..." --body "..."
 ```
 
 ### Important
@@ -188,10 +194,8 @@ jj git fetch && jj rebase -d main@origin
 jj abandon @  # 空のコミットを破棄
 ```
 
-### Direct to Main (小さな変更)
+### Direct to Main
 
-```bash
-jj describe -m "..."
-jj bookmark set main -r @
-jj git push
-```
+**⛔ 禁止: main への直接プッシュは行わない**
+
+すべての変更は Feature Branch → PR → Merge のフローで行う。

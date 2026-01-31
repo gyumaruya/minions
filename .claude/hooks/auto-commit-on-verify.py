@@ -1,15 +1,17 @@
 #!/usr/bin/env python3
 """
-PostToolUse hook: Suggest or trigger auto-commit after successful verification.
+PostToolUse hook: Auto-push after successful verification when PR is open.
 
 Triggers when:
 - Test commands pass (pytest, npm test, etc.)
 - Verification commands succeed (copilot, codex, gemini tests)
 - Explicit verification phrases detected
+
+If a PR is open, automatically pushes without asking permission.
 """
 
 import json
-import os
+import subprocess
 import sys
 
 # Commands that indicate successful verification
@@ -81,7 +83,6 @@ def is_successful(output: str, exit_code: int) -> bool:
 def has_uncommitted_changes() -> bool:
     """Check if there are uncommitted changes in jj."""
     try:
-        import subprocess
         result = subprocess.run(
             ["jj", "status"],
             capture_output=True,
@@ -90,6 +91,40 @@ def has_uncommitted_changes() -> bool:
         )
         # If status shows changes, return True
         return "Working copy changes" in result.stdout or "Modified" in result.stdout
+    except Exception:
+        return False
+
+
+def get_current_branch() -> str | None:
+    """Get the current feature branch name."""
+    try:
+        result = subprocess.run(
+            ["jj", "bookmark", "list"],
+            capture_output=True,
+            text=True,
+            timeout=5
+        )
+        for line in result.stdout.split("\n"):
+            if "feature/" in line and "@origin" not in line and "*" in line:
+                parts = line.split(":")
+                if parts:
+                    return parts[0].strip().rstrip("*").strip()
+        return None
+    except Exception:
+        return None
+
+
+def has_open_pr() -> bool:
+    """Check if there's an open PR for any feature branch."""
+    try:
+        result = subprocess.run(
+            ["gh", "pr", "list", "--state", "open", "--json", "number,headRefName"],
+            capture_output=True,
+            text=True,
+            timeout=10
+        )
+        prs = json.loads(result.stdout) if result.stdout else []
+        return len(prs) > 0
     except Exception:
         return False
 
@@ -121,17 +156,27 @@ def main():
         if not has_uncommitted_changes():
             sys.exit(0)
 
-        # Suggest auto-commit
-        result = {
-            "hookSpecificOutput": {
-                "hookEventName": "PostToolUse",
-                "additionalContext": (
-                    "[Auto-Commit Ready] Verification passed with uncommitted changes. "
-                    "Consider committing: "
-                    "`jj describe -m \"...\" && jj bookmark set main -r @ && jj git push`"
-                )
+        # Check if PR is open - if so, auto-push without asking
+        if has_open_pr():
+            result = {
+                "hookSpecificOutput": {
+                    "hookEventName": "PostToolUse",
+                    "additionalContext": (
+                        "[Auto-Push] PR is open. Verification passed with uncommitted changes. "
+                        "Push automatically: `jj describe -m \"...\" && jj git push`"
+                    )
+                }
             }
-        }
+        else:
+            result = {
+                "hookSpecificOutput": {
+                    "hookEventName": "PostToolUse",
+                    "additionalContext": (
+                        "[PR Required] No open PR. Create feature branch and PR first: "
+                        "`jj git push -c @ && gh pr create`"
+                    )
+                }
+            }
         print(json.dumps(result))
         sys.exit(0)
 

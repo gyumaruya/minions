@@ -99,7 +99,7 @@ Bash("codex exec ... '1文で答えて'")
 
 ## Tech Stack
 
-- **jj** (Jujutsu) - バージョン管理（git直接操作禁止）
+- **jj** (Jujutsu) - バージョン管理（git直接操作禁止、main直接プッシュ禁止）
 - **Python** / **uv** (pip禁止)
 - **ruff** (lint/format) / **ty** (type check) / **pytest**
 - `poe lint` / `poe test` / `poe all`
