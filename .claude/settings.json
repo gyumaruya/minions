@@ -112,6 +112,7 @@
       "Bash(mv:*)",
       "Bash(chmod:*)",
       "Bash(git:*)",
+      "Bash(jj:*)",
       "Bash(python:*)",
       "Bash(python3:*)",
       "Bash(uv:*)",
