@@ -2,7 +2,7 @@
 
 **マルチエージェント協調フレームワーク**
 
-Claude Code が Codex CLI（深い推論）と Gemini CLI（大規模リサーチ）を統合し、各エージェントの強みを活かして開発を加速する。
+Claude Code が Codex CLI（深い推論）、Gemini CLI（大規模リサーチ）、Copilot CLI（サブエージェント）を統合し、各エージェントの強みを活かして開発を加速する。
 
 ---
 
@@ -13,8 +13,9 @@ Claude Code が Codex CLI（深い推論）と Gemini CLI（大規模リサー�
 | **Claude Code** | オーケストレーション、ユーザー対話 | 全体統括、タスク管理 |
 | **Codex CLI** | 深い推論、設計判断、デバッグ | 設計相談、エラー分析、トレードオフ評価 |
 | **Gemini CLI** | 1Mトークン、マルチモーダル、Web検索 | コードベース全体分析、ライブラリ調査、PDF/動画処理 |
+| **Copilot CLI** | サブエージェント、GitHub連携 | コマンド提案、GitHub操作、エージェント協調 |
 
-**IMPORTANT**: 単体では難しいタスクも、3エージェントの協調で解決できる。
+**IMPORTANT**: 単体では難しいタスクも、4エージェントの協調で解決できる。
 
 ---
 
@@ -40,23 +41,43 @@ Bash("codex exec ... '1文で答えて'")
 
 ---
 
-## Quick Reference
+## Agent Selection Strategy
 
-### Codex を使う時
+**優先順位に基づいてエージェントを選択する:**
+
+| 優先度 | Agent | 使用場面 | コスト |
+|--------|-------|----------|--------|
+| 1 | **Codex** | 設計・デバッグ・深い推論 | 高 |
+| 2 | **Gemini** | リサーチ・大規模分析・マルチモーダル | 中 |
+| 3 | **Copilot** | **それ以外すべて（デフォルト）** | 低 |
+
+### Codex を使う時（重要タスク）
 
 - 設計判断（「どう実装？」「どのパターン？」）
 - デバッグ（「なぜ動かない？」「エラーの原因は？」）
 - 比較検討（「AとBどちらがいい？」）
+- セキュリティ・パフォーマンス分析
 
 → 詳細: `.claude/rules/codex-delegation.md`
 
-### Gemini を使う時
+### Gemini を使う時（専門タスク）
 
 - リサーチ（「調べて」「最新の情報は？」）
 - 大規模分析（「コードベース全体を理解して」）
 - マルチモーダル（「このPDF/動画を見て」）
 
 → 詳細: `.claude/rules/gemini-delegation.md`
+
+### Copilot CLI を使う時（その他すべて）
+
+- **デフォルト選択** — Codex/Gemini に該当しないタスク
+- 一般的な質問・説明
+- GitHub 操作
+- コスト効率重視のタスク
+
+**必須オプション**: `--model claude-opus-4.5 --allow-all --silent`
+
+→ 詳細: `.claude/rules/copilot-delegation.md`
 
 ---
 

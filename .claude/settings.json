@@ -58,6 +58,11 @@
             "type": "command",
             "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/log-cli-tools.py\"",
             "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/auto-commit-on-verify.py\"",
+            "timeout": 10
           }
         ]
       },
@@ -151,6 +156,8 @@
       "Bash(docker-compose:*)",
       "Bash(gemini:*)",
       "Bash(codex:*)",
+      "Bash(gh:*)",
+      "Bash(copilot:*)",
       "Bash(pkill:*)",
       "Bash(for:*)",
       "Bash(do)",
