@@ -86,6 +86,7 @@ jj rebase -d main@origin
 
 ## Important Notes
 
+- **⛔ Do NOT push directly to main** — Always use Feature Branch → PR → Merge
 - **Do NOT use raw git commands** unless necessary for specific git-only features
 - Working copy (`@`) is always a commit in progress
 - Parent of working copy (`@-`) is usually what you want to push
@@ -188,10 +189,8 @@ jj git fetch && jj rebase -d main@origin
 jj abandon @  # 空のコミットを破棄
 ```
 
-### Direct to Main (小さな変更)
+### Direct to Main
 
-```bash
-jj describe -m "..."
-jj bookmark set main -r @
-jj git push
-```
+**⛔ 禁止: main への直接プッシュは行わない**
+
+すべての変更は Feature Branch → PR → Merge のフローで行う。
