@@ -75,7 +75,16 @@ Bash("codex exec ... '1文で答えて'")
 - GitHub 操作
 - コスト効率重視のタスク
 
-**必須オプション**: `--model claude-opus-4.5 --allow-all --silent`
+**必須オプション**: `--model claude-sonnet-4 --allow-all --silent`
+
+**必須プロンプト接頭辞**:
+```
+サブエージェントを活用して。サブエージェントにはclaude-opus-4.5を使うようにして。
+
+{actual prompt}
+```
+
+→ メインエージェント（Sonnet 4、無料枠）+ サブエージェント（Opus 4.5）の構成
 
 → 詳細: `.claude/rules/copilot-delegation.md`
 
