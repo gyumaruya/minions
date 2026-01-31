@@ -154,3 +154,44 @@ jj bookmark set main -r @ && jj git push
 - **動作確認なし** → 自動コミットしない
 - **テスト失敗** → 自動コミットしない
 - **未検証の変更** → 手動確認を要求
+
+## Pull Request Workflow
+
+### PR 作成時のルール
+
+**PR 作成後は必ず URL を表示する:**
+
+```
+✅ PR 作成完了: https://github.com/{owner}/{repo}/pull/{number}
+```
+
+ユーザーがクリックして PR を開けるようにする。
+
+### Feature Branch → PR → Merge フロー
+
+```bash
+# 1. Feature branch 作成
+jj bookmark create feature/xxx -r @
+
+# 2. 作業 & コミット
+jj describe -m "..."
+
+# 3. プッシュ
+jj git push --bookmark feature/xxx
+
+# 4. PR 作成 (URL を表示)
+gh pr create --title "..." --body "..."
+# → https://github.com/.../pull/N
+
+# 5. マージ後のクリーンアップ
+jj git fetch && jj rebase -d main@origin
+jj abandon @  # 空のコミットを破棄
+```
+
+### Direct to Main (小さな変更)
+
+```bash
+jj describe -m "..."
+jj bookmark set main -r @
+jj git push
+```
