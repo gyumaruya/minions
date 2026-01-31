@@ -6,11 +6,25 @@ jj is a Git-compatible VCS with a simpler mental model and better conflict handl
 
 ## ⚠️ CRITICAL RULES
 
-| Rule | Command |
-|------|---------|
-| **PR は必ず draft で作成** | `gh pr create --draft ...` |
+| Rule | Enforcement |
+|------|-------------|
+| **セッション開始時に自動 PR 作成** | `auto-create-pr.py` フック |
+| **PR は必ず draft で作成** | `enforce-draft-pr.py` フック |
+| **PR なしでの編集禁止** | `ensure-pr-open.py` フック (BLOCK) |
 | **main への直接プッシュ禁止** | Feature Branch → PR → Merge |
 | **マージ済みブランチに再プッシュ禁止** | 新規ブランチ・新規 PR を作成 |
+
+## 自動 PR 作成 (Session Start)
+
+セッション開始時に以下が自動実行される:
+
+1. オープンな PR があるか確認
+2. なければ `feature/session-{change_id}` ブランチを作成
+3. 自動で draft PR を作成
+
+**フック**: `.claude/hooks/auto-create-pr.py`
+
+**編集ブロック**: PR がない状態で Edit/Write を試みると **ブロック** される。
 
 ## Why jj
 
