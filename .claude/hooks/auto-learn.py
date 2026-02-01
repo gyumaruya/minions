@@ -10,8 +10,12 @@ Detects learning opportunities from user prompts:
 Saves learnings to memory for self-improvement.
 """
 
+from __future__ import annotations
+
 import json
+import os
 import re
+import subprocess
 import sys
 from pathlib import Path
 
@@ -42,6 +46,42 @@ TRIGGER_TO_TYPE = {
     "workflow": "workflow",
     "explicit_learn": "preference",
 }
+
+
+def get_openai_api_key_from_keychain() -> str | None:
+    """Get OpenAI API key from macOS Keychain.
+
+    Returns:
+        API key string, or None if not found or error occurred.
+    """
+    try:
+        username = os.environ.get("USER", "")
+        if not username:
+            return None
+
+        result = subprocess.run(
+            [
+                "security",
+                "find-generic-password",
+                "-a",
+                username,
+                "-s",
+                "openai-api-key",
+                "-w",
+            ],
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+
+        if result.returncode == 0:
+            api_key = result.stdout.strip()
+            return api_key if api_key else None
+
+        return None
+
+    except (subprocess.TimeoutExpired, subprocess.SubprocessError, Exception):
+        return None
 
 
 def detect_learning(text: str) -> list[tuple[str, str, str]]:
@@ -76,7 +116,24 @@ def save_learning(content: str, memory_type: str, trigger: str) -> bool:
     try:
         from minions.memory import AgentType, MemoryBroker, MemoryScope, MemoryType
 
-        broker = MemoryBroker(enable_mem0=False)
+        # Try to get API key from Keychain
+        api_key = get_openai_api_key_from_keychain()
+        enable_mem0 = False
+
+        if api_key:
+            # Set environment variable for mem0
+            os.environ["OPENAI_API_KEY"] = api_key
+            enable_mem0 = True
+
+            # Log to stderr for hook debugging
+            print("[auto-learn] mem0 enabled via Keychain API key", file=sys.stderr)
+        else:
+            print(
+                "[auto-learn] Keychain API key not found, using JSONL fallback",
+                file=sys.stderr,
+            )
+
+        broker = MemoryBroker(enable_mem0=enable_mem0)
         broker.add(
             content=content,
             memory_type=MemoryType(memory_type),
