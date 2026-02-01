@@ -51,12 +51,22 @@
             "type": "command",
             "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/enforce-no-merge.py\"",
             "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/prevent-secrets-commit.py\"",
+            "timeout": 5
           }
         ]
       },
       {
         "matcher": "Edit|Write",
         "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/enforce-hierarchy.py\"",
+            "timeout": 5
+          },
           {
             "type": "command",
             "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/ensure-pr-open.py\"",
@@ -78,6 +88,16 @@
             "timeout": 5
           }
         ]
+      },
+      {
+        "matcher": "Edit|Write|Bash|WebFetch|WebSearch|Task",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/enforce-delegation.py\"",
+            "timeout": 5
+          }
+        ]
       }
     ],
     "PostToolUse": [
@@ -88,6 +108,11 @@
             "type": "command",
             "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/check-codex-after-plan.py\"",
             "timeout": 10
+          },
+          {
+            "type": "command",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/hierarchy-permissions.py\"",
+            "timeout": 5
           }
         ]
       },
@@ -162,7 +187,6 @@
       "Bash(mv:*)",
       "Bash(chmod:*)",
       "Bash(git:*)",
-      "Bash(jj:*)",
       "Bash(python:*)",
       "Bash(python3:*)",
       "Bash(uv:*)",
@@ -203,6 +227,7 @@
       "Bash(codex:*)",
       "Bash(gh:*)",
       "Bash(copilot:*)",
+      "Bash(claude:*)",
       "Bash(pkill:*)",
       "Bash(for:*)",
       "Bash(do)",

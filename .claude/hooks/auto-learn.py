@@ -52,6 +52,14 @@ def detect_learning(text: str) -> list[tuple[str, str, str]]:
     """
     learnings = []
 
+    # Skip questions (ends with ? or の？ etc.)
+    if re.search(r"[?？]$|の[?？]$|かな[?？]?$|だい[?？]?$", text.strip()):
+        return learnings
+
+    # Skip too long text (likely conversational, not a directive)
+    if len(text) > 50:
+        return learnings
+
     for pattern, trigger in CORRECTION_PATTERNS:
         match = re.search(pattern, text)
         if match:
@@ -83,19 +91,16 @@ def save_learning(content: str, memory_type: str, trigger: str) -> bool:
 
 def main() -> None:
     """Main hook entry point."""
-    hook_input = json.loads(sys.stdin.read())
-    hook_event = hook_input.get("hook_event", "")
+    try:
+        hook_input = json.load(sys.stdin)
+    except (json.JSONDecodeError, Exception):
+        sys.exit(0)
 
-    # Only process UserPromptSubmit events
-    if hook_event != "UserPromptSubmit":
-        print(json.dumps({"continue": True}))
-        return
-
-    user_message = hook_input.get("user_message", "")
+    # Get user prompt
+    user_message = hook_input.get("prompt", "")
 
     if not user_message:
-        print(json.dumps({"continue": True}))
-        return
+        sys.exit(0)
 
     # Detect learnings
     learnings = detect_learning(user_message)
@@ -107,12 +112,19 @@ def main() -> None:
             saved += 1
 
     # Add system message about learned content
-    result = {"continue": True}
-
     if saved > 0:
-        result["message"] = f"💡 {saved} 件の学習を記録しました。"
+        json.dump(
+            {
+                "hookSpecificOutput": {
+                    "hookEventName": "UserPromptSubmit",
+                    "additionalContext": f"💡 {saved} 件の学習を記録しました。",
+                }
+            },
+            sys.stdout,
+            ensure_ascii=False,
+        )
 
-    print(json.dumps(result, ensure_ascii=False))
+    sys.exit(0)
 
 
 if __name__ == "__main__":

@@ -6,6 +6,20 @@ Claude Code が Codex CLI（深い推論）、Gemini CLI（大規模リサーチ
 
 ---
 
+## Session Start (MUST READ)
+
+**セッション開始時に必ず実行:**
+
+1. `.claude/.pr-status` を確認し、PRの状態をユーザーに報告する
+2. PRがない場合は自動作成されているはず。されていなければ手動で作成を促す
+
+```bash
+# PRステータス確認
+cat .claude/.pr-status 2>/dev/null || echo "PRステータスなし"
+```
+
+---
+
 ## Why This Exists
 
 | Agent | Strength | Use For |
@@ -90,6 +104,62 @@ Bash("codex exec ... '1文で答えて'")
 
 ---
 
+## Agent Hierarchy (階層型エージェントシステム) ✓ 実装済み
+
+**許可の階層委譲**により、サブエージェントがユーザー確認なしで動作可能。
+
+**万能天才路線**: 歴史上の知的巨人をペルソナとして採用。
+
+### 現在の構成（2層）
+
+```
+User (ユーザー)
+     │
+     ▼
+┌──────────────────────────────────┐
+│   CONDUCTOR: Leonardo da Vinci   │ ← 統合的ビジョン
+│   "Simplicity is the ultimate    │
+│    sophistication."              │
+└────────────┬─────────────────────┘
+             │ 許可を自動委譲
+             ▼
+┌──────────────────────────────────┐
+│   MUSICIAN: Richard Feynman      │ ← 好奇心と実践
+│   "Don't fool yourself."         │
+│   手を動かして理解する           │
+└──────────────────────────────────┘
+```
+
+**シンプルな2層構成:**
+- **Conductor** — 統合的ビジョン、タスク分解、全体調整（Leonardo da Vinci）
+- **Musician** — 実装と検証、手を動かす（Richard Feynman）
+
+**将来の拡張オプション:**
+- 中間層（Section Leader / John von Neumann）を追加して3層化も可能
+- 現状は2層で十分なシンプルさを保持
+
+### 許可の委譲
+
+親エージェントがサブエージェントを spawn すると、`hierarchy-permissions.py` フックが
+適切な許可を自動的に付与。ユーザー確認は不要。
+
+### ペルソナ（万能天才路線）
+
+歴史上の知的巨人をペルソナとして採用:
+
+| Role | Historical Figure | Philosophy |
+|------|-------------------|------------|
+| Conductor | **Leonardo da Vinci** | 統合的ビジョン、美と機能の融合 |
+| Musician | **Richard Feynman** | 好奇心、実践、シンプル化 |
+
+**拡張オプション:**
+| Section Leader | **John von Neumann** | 論理的分解、最適化、並列処理（3層化時）|
+
+→ 詳細: `.claude/rules/agent-hierarchy.md`
+→ 指示書: `.claude/agents/instructions/`
+
+---
+
 ## Workflow
 
 ```
@@ -108,7 +178,7 @@ Bash("codex exec ... '1文で答えて'")
 
 ## Tech Stack
 
-- **jj** (Jujutsu) - バージョン管理（git直接操作禁止、main直接プッシュ禁止）
+- **git** - バージョン管理（main直接プッシュ禁止、シークレット検出あり）
 - **Python** / **uv** (pip禁止)
 - **ruff** (lint/format) / **ty** (type check) / **pytest**
 - `poe lint` / `poe test` / `poe all`

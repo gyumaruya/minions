@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+from __future__ import annotations
 """
 PreToolUse hook: Check if Codex consultation is recommended before Write/Edit.
 

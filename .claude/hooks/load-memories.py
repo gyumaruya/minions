@@ -108,18 +108,14 @@ def format_memories_for_context(memories: list[dict]) -> str:
 
 def main() -> None:
     """Main hook entry point."""
-    hook_input = json.loads(sys.stdin.read())
-    hook_event = hook_input.get("hook_event", "")
-
-    # Only process UserPromptSubmit
-    if hook_event != "UserPromptSubmit":
-        print(json.dumps({"continue": True}))
-        return
+    try:
+        hook_input = json.load(sys.stdin)
+    except (json.JSONDecodeError, Exception):
+        sys.exit(0)
 
     # Check if we've already loaded memories this session
     if STATE_FILE.exists():
-        print(json.dumps({"continue": True}))
-        return
+        sys.exit(0)
 
     # Mark as loaded
     STATE_FILE.touch()
@@ -128,18 +124,18 @@ def main() -> None:
     memories = get_relevant_memories()
 
     if not memories:
-        print(json.dumps({"continue": True}))
-        return
+        sys.exit(0)
 
     # Format and inject as context
     context = format_memories_for_context(memories)
 
-    result = {
-        "continue": True,
-        "message": context,
-    }
-
-    print(json.dumps(result, ensure_ascii=False))
+    json.dump({
+        "hookSpecificOutput": {
+            "hookEventName": "UserPromptSubmit",
+            "additionalContext": context
+        }
+    }, sys.stdout, ensure_ascii=False)
+    sys.exit(0)
 
 
 if __name__ == "__main__":

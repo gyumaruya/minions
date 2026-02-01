@@ -1,49 +1,57 @@
 #!/usr/bin/env python3
 """
-PreToolUse hook: Block gh pr merge commands.
+PreToolUse hook: Prevent merge operations.
 
-Merge operations should be done by the user, not the agent.
+Blocks gh pr merge commands. Merging should be done by users, not agents.
 """
+from __future__ import annotations
 
 import json
-import os
-import re
+import sys
 
 
 def main():
-    tool_input = os.environ.get("CLAUDE_TOOL_INPUT", "")
-
-    if not tool_input:
-        print(json.dumps({"result": "approve"}))
-        return
-
+    # Read input from stdin
     try:
-        data = json.loads(tool_input)
-        command = data.get("command", "")
-    except json.JSONDecodeError:
-        print(json.dumps({"result": "approve"}))
-        return
+        hook_input = json.load(sys.stdin)
+    except (json.JSONDecodeError, Exception):
+        sys.exit(0)
 
-    # Check if this is a gh pr merge command
-    if re.search(r"\bgh\s+pr\s+merge\b", command):
-        print(
-            json.dumps(
-                {
-                    "result": "block",
-                    "message": (
-                        "⛔ マージ操作はブロックされています。\n\n"
-                        "マージはユーザーが行うべき操作です。\n\n"
-                        "以下までは実行可能:\n"
-                        "- `gh pr ready` (draft 解除)\n"
-                        "- `gh pr view` (PR 確認)\n\n"
-                        "マージはユーザーが GitHub UI または CLI で実行してください。"
-                    ),
-                }
-            )
-        )
-        return
+    tool_name = hook_input.get("tool_name", "")
+    tool_input = hook_input.get("tool_input", {})
 
-    print(json.dumps({"result": "approve"}))
+    # Only check Bash tool
+    if tool_name != "Bash":
+        sys.exit(0)
+
+    command = tool_input.get("command", "") if isinstance(tool_input, dict) else ""
+
+    # Check for merge commands
+    if "gh pr merge" in command or "git merge" in command:
+        message = """⛔ マージ操作はブロックされています。
+
+【理由】
+マージはユーザーが行うべき操作です。
+
+【許可されている操作】
+- gh pr ready（レビュー準備完了にする）
+- gh pr view（PRを確認する）
+
+【マージ方法】
+GitHub UI または以下のコマンドをユーザーが実行:
+  gh pr merge <number>"""
+
+        json.dump({
+            "hookSpecificOutput": {
+                "hookEventName": "PreToolUse",
+                "permissionDecision": "deny",
+                "permissionDecisionReason": message
+            }
+        }, sys.stdout)
+        sys.exit(0)
+
+    # Allow other commands
+    sys.exit(0)
 
 
 if __name__ == "__main__":
