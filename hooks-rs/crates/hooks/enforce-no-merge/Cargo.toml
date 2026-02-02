@@ -1,0 +1,20 @@
+[package]
+name = "enforce-no-merge"
+version.workspace = true
+edition = "2024"
+
+[[bin]]
+name = "enforce-no-merge"
+path = "src/main.rs"
+
+[dependencies]
+hook-common.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+regex.workspace = true
+anyhow.workspace = true
+
+[dev-dependencies]
+assert_cmd.workspace = true
+predicates.workspace = true
+insta.workspace = true

@@ -110,6 +110,41 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "34aa73646ffb006b8f5147f3dc182bd4bcb190227ce861fc4a4844bf8e3cb2c0"
 
 [[package]]
+name = "enforce-draft-pr"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "hook-common",
+ "regex",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "enforce-no-merge"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "assert_cmd",
+ "hook-common",
+ "insta",
+ "predicates",
+ "regex",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "ensure-pr-open"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "hook-common",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "errno"
 version = "0.3.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -259,6 +294,17 @@ checksum = "72dd2d6d381dfb73a193c7fca536518d7caee39fc8503f74e7dc0be0531b425c"
 dependencies = [
  "predicates-core",
  "termtree",
+]
+
+[[package]]
+name = "prevent-secrets-commit"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "hook-common",
+ "regex",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]

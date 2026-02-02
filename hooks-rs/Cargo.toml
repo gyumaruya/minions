@@ -2,7 +2,10 @@
 resolver = "2"
 members = [
     "crates/hook-common",
-    # "crates/hooks/*",  # Added as hooks are implemented
+    "crates/hooks/enforce-no-merge",
+    "crates/hooks/enforce-draft-pr",
+    "crates/hooks/prevent-secrets-commit",
+    "crates/hooks/ensure-pr-open",
 ]
 
 [workspace.package]
