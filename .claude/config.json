@@ -1,0 +1,20 @@
+{
+  "agents": {
+    "codex": {
+      "enabled": true,
+      "command": "codex"
+    },
+    "gemini": {
+      "enabled": true,
+      "command": "gemini"
+    },
+    "copilot": {
+      "enabled": true,
+      "command": "copilot"
+    }
+  },
+  "platform": {
+    "use_keychain": true,
+    "api_key_env": "OPENAI_API_KEY"
+  }
+}

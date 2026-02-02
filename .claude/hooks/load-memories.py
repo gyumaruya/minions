@@ -12,12 +12,16 @@ from __future__ import annotations
 
 import json
 import os
-import subprocess
 import sys
 from pathlib import Path
 
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
+# Add scripts to path
+sys.path.insert(0, str(Path(__file__).parent.parent / "scripts"))
+
+# Import config utilities
+from config_utils import get_openai_api_key
 
 # State file to track if we've loaded memories this session
 # Use parent PID (Claude Code process) to identify session
@@ -25,49 +29,13 @@ _ppid = os.environ.get("CLAUDE_SESSION_ID", str(os.getppid()))
 STATE_FILE = Path("/tmp") / f"claude-memory-loaded-{_ppid}.flag"
 
 
-def get_openai_api_key_from_keychain() -> str | None:
-    """Get OpenAI API key from macOS Keychain.
-
-    Returns:
-        API key string, or None if not found or error occurred.
-    """
-    try:
-        username = os.environ.get("USER", "")
-        if not username:
-            return None
-
-        result = subprocess.run(
-            [
-                "security",
-                "find-generic-password",
-                "-a",
-                username,
-                "-s",
-                "openai-api-key",
-                "-w",
-            ],
-            capture_output=True,
-            text=True,
-            timeout=5,
-        )
-
-        if result.returncode == 0:
-            api_key = result.stdout.strip()
-            return api_key if api_key else None
-
-        return None
-
-    except (subprocess.TimeoutExpired, subprocess.SubprocessError, Exception):
-        return None
-
-
 def get_relevant_memories() -> list[dict]:
     """Get relevant memories directly."""
     try:
         from minions.memory import MemoryBroker, MemoryScope, MemoryType
 
-        # Try to get API key from Keychain
-        api_key = get_openai_api_key_from_keychain()
+        # Try to get API key (cross-platform)
+        api_key = get_openai_api_key()
         enable_mem0 = False
 
         if api_key:
@@ -76,10 +44,10 @@ def get_relevant_memories() -> list[dict]:
             enable_mem0 = True
 
             # Log to stderr for hook debugging
-            print("[load-memories] mem0 enabled via Keychain API key", file=sys.stderr)
+            print("[load-memories] mem0 enabled via API key", file=sys.stderr)
         else:
             print(
-                "[load-memories] Keychain API key not found, using JSONL fallback",
+                "[load-memories] API key not found, using JSONL fallback",
                 file=sys.stderr,
             )
 

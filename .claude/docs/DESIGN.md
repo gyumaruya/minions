@@ -80,6 +80,7 @@ Self-improvement uses a policy feedback loop: retrieval outcomes and task result
 | Use policy records that update retrieval thresholds and scoring weights from observed outcomes | Make self-improvement measurable and auditable | Static heuristics, manual tuning | 2026-02-01 |
 | Use tiered memory (hot/warm/cold) with boundary summaries | Reduce context size while preserving signal | Flat store | 2026-02-01 |
 | Update scoring and retrieval policy from observed outcomes | Continuous improvement with measurable feedback | Static heuristics | 2026-02-01 |
+| Store delegation enforcement state under project-controlled `.claude/.delegation-state/` with atomic writes and missing-state warnings | Reduce `/tmp` tampering and make enforcement state auditable | Keep state in `/tmp`, rely on delete-block hooks | 2026-02-02 |
 
 ## TODO
 
