@@ -40,25 +40,55 @@ def get_session_id() -> str:
     return os.environ.get("CLAUDE_SESSION_ID", str(os.getppid()))
 
 
+def is_conductor_session() -> bool:
+    """Check if conductor-session marker exists.
+
+    Simplified: only checks file existence, no PPID validation.
+    PPID checks were unreliable with Claude Code's Task tool implementation.
+    """
+    project_dir = os.environ.get("CLAUDE_PROJECT_DIR", ".")
+    marker_path = Path(project_dir) / ".claude" / ".conductor-session"
+    return marker_path.exists()
+
+
+# Global variable to store hook input for role detection
+_hook_input: dict[str, Any] | None = None
+
+
 def get_role() -> str:
-    """Determine agent role based on session marker and PPID."""
-    # 1. Environment variable takes priority
+    """Determine agent role based on environment and hook context.
+
+    Priority:
+    1. AGENT_ROLE environment variable (explicit override)
+    2. Task prompt contains "musician" keyword → musician (subagent)
+    3. conductor-session marker exists → conductor
+    4. Default to musician (safe default)
+
+    The key improvement: we check the hook input for musician keywords
+    to detect when this is a subagent spawned via Task tool.
+    """
+    # 1. Environment variable takes absolute priority
     role = os.environ.get("AGENT_ROLE", "").lower()
     if role in ("conductor", "musician"):
         return role
 
-    # 2. Check file marker and PPID
-    project_dir = os.environ.get("CLAUDE_PROJECT_DIR", ".")
-    marker_path = Path(project_dir) / ".claude" / ".conductor-session"
-    if marker_path.exists():
-        try:
-            marker = json.loads(marker_path.read_text(encoding="utf-8"))
-            if marker.get("ppid") == os.getppid():
-                return "conductor"  # Main session
-        except Exception:
-            pass
+    # 2. Check hook input for subagent indicators
+    # This helps detect when we're running as a musician subagent
+    if _hook_input is not None:
+        # Check if there's context suggesting we're a musician
+        session_context = _hook_input.get("session_context", {})
+        if isinstance(session_context, dict):
+            # Look for musician indicators in recent context
+            recent_messages = session_context.get("recent_messages", [])
+            for msg in recent_messages if isinstance(recent_messages, list) else []:
+                if isinstance(msg, str) and "musician" in msg.lower():
+                    return "musician"
 
-    # 3. Default: Musician (subagent)
+    # 3. Check if conductor-session marker exists
+    if is_conductor_session():
+        return "conductor"
+
+    # 4. Safe default: musician
     return "musician"
 
 
@@ -119,10 +149,15 @@ def is_delegation(tool_input: dict[str, Any]) -> bool:
 
 
 def main() -> None:
+    global _hook_input
+
     try:
         hook_input = json.load(sys.stdin)
     except Exception:
         sys.exit(0)
+
+    # Store hook input globally for role detection
+    _hook_input = hook_input
 
     tool_name = hook_input.get("tool_name", "")
     tool_input = hook_input.get("tool_input", {})
