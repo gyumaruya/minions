@@ -22,6 +22,12 @@ hooks-rs/
 │   │   │   ├── state.rs    # /tmp 状態ファイル管理
 │   │   │   └── subprocess.rs # シェルコマンド実行
 │   │   └── Cargo.toml
+│   ├── hook-memory/        # Memory System
+│   │   ├── src/
+│   │   │   ├── lib.rs      # エントリポイント
+│   │   │   ├── schema.rs   # MemoryEvent, MemoryType等
+│   │   │   └── storage.rs  # JSONL読み書き
+│   │   └── Cargo.toml
 │   └── hooks/              # 各hook実装
 │       ├── enforce-no-merge/
 │       ├── enforce-draft-pr/
@@ -157,13 +163,54 @@ let result = git("status --porcelain")?;
 let result = gh("pr list --json number")?;
 ```
 
+## hook-memory API
+
+### MemoryEvent
+
+```rust
+use hook_memory::{MemoryEvent, MemoryType, MemoryScope, AgentType};
+
+let event = MemoryEvent::new(
+    "PRは日本語で書く",
+    MemoryType::Preference,
+    MemoryScope::User,
+    AgentType::System,
+)
+.with_context("ユーザーの指示")
+.with_confidence(0.9)
+.with_tag("pr");
+```
+
+### MemoryStorage
+
+```rust
+use hook_memory::MemoryStorage;
+
+let storage = MemoryStorage::new("~/.claude/memory/events.jsonl");
+
+// 追記
+storage.append(&event)?;
+
+// 全件読み込み
+let all = storage.load_all()?;
+
+// タイプでフィルタ
+let prefs = storage.load_by_type(MemoryType::Preference)?;
+
+// 検索
+let results = storage.search("日本語")?;
+
+// 最新N件
+let recent = storage.recent(10)?;
+```
+
 ## 移行計画
 
 1. ✅ テスト基盤構築（Python記録用ランナー）
 2. ✅ hook-common クレート
 3. ✅ Tier 1 hooks (4個)
-4. 🔄 Tier 2-4 hooks
-5. ⏳ hook-memory クレート
+4. ✅ hook-memory クレート
+5. 🔄 Tier 2-4 hooks
 6. ⏳ CI/CD 設定
 
 ## ライセンス
