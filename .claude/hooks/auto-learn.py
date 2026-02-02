@@ -97,7 +97,10 @@ def detect_learning(text: str) -> list[tuple[str, str, str]]:
         return learnings
 
     # Skip too long text (likely conversational, not a directive)
-    if len(text) > 50:
+    # We use 50 characters as the max directive length to filter out
+    # conversational messages and focus on concise user corrections.
+    MAX_DIRECTIVE_LENGTH = 50
+    if len(text) > MAX_DIRECTIVE_LENGTH:
         return learnings
 
     for pattern, trigger in CORRECTION_PATTERNS:

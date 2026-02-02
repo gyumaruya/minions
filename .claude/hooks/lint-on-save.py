@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 from __future__ import annotations
+
 """
 Post-tool hook: Run formatter and type checker on Python files after Edit/Write.
 

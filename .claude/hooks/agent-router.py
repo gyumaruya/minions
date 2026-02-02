@@ -12,7 +12,6 @@ from __future__ import annotations
 
 import json
 import sys
-from typing import Optional
 
 # Triggers for Codex (design, debugging, deep reasoning) - HIGH PRIORITY
 CODEX_TRIGGERS = {

@@ -26,9 +26,8 @@ import argparse
 import json
 import re
 import subprocess
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-
 
 PROJECT_ROOT = Path(__file__).parent.parent.parent.parent
 LOG_FILE = PROJECT_ROOT / ".claude" / "logs" / "cli-tools.jsonl"
@@ -52,7 +51,7 @@ def parse_logs(since: str | None = None) -> list[dict]:
     entries = []
     since_dt = None
     if since:
-        since_dt = datetime.fromisoformat(since).replace(tzinfo=timezone.utc)
+        since_dt = datetime.fromisoformat(since).replace(tzinfo=UTC)
 
     with open(LOG_FILE, encoding="utf-8") as f:
         for line in f:
@@ -263,7 +262,7 @@ def update_context_file(file_path: Path, session_history: str) -> bool:
 
 def generate_full_checkpoint(since: str | None = None) -> Path | None:
     """Generate a comprehensive checkpoint file."""
-    timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d-%H%M%S")
+    timestamp = datetime.now(UTC).strftime("%Y-%m-%d-%H%M%S")
     checkpoint_file = CHECKPOINTS_DIR / f"{timestamp}.md"
 
     # Ensure checkpoints directory exists
@@ -283,7 +282,7 @@ def generate_full_checkpoint(since: str | None = None) -> Path | None:
     lines: list[str] = []
 
     # Header
-    lines.append(f"# Checkpoint: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')} UTC")
+    lines.append(f"# Checkpoint: {datetime.now(UTC).strftime('%Y-%m-%d %H:%M:%S')} UTC")
     lines.append("")
 
     # Summary
@@ -519,8 +518,8 @@ Examples:
                 print(f"{'='*60}")
                 print(f"\nAnalysis prompt saved to: {prompt_file}")
                 print("\nNext step: Use a subagent to analyze and suggest skills:")
-                print(f'  Read the prompt file and pass it to a subagent for analysis.')
-                print(f"\nThe subagent will identify reusable patterns and suggest new skills.")
+                print('  Read the prompt file and pass it to a subagent for analysis.')
+                print("\nThe subagent will identify reusable patterns and suggest new skills.")
         else:
             print("Failed to create checkpoint.")
         return

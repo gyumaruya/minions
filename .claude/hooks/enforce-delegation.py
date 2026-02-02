@@ -17,8 +17,22 @@ from typing import Any
 
 WORK_TOOLS = {"Edit", "Write", "Read", "Bash", "WebFetch", "WebSearch"}
 DELEGATION_TOOL = "Task"
+
+# Thresholds are tuned to nudge the Conductor towards healthy delegation
+# habits without being overly punitive:
+# - 3 warnings for the Conductor: allows a few mistakes / exploratory actions
+#   while still providing repeated, clear feedback when work tools are used
+#   directly instead of delegating.
+# - Block after 5 non-delegated work-tool uses within the window: provides a
+#   hard stop if warnings are ignored, but is high enough to avoid blocking on
+#   occasional edge cases or one-off needs.
 WARN_THRESHOLD = {"conductor": 3}
 BLOCK_THRESHOLD = {"conductor": 5}
+
+# Use a 10-minute sliding window so that enforcement focuses on recent
+# behavior within a typical task burst. This avoids "remembering" older
+# misuses across an entire long session while still catching short-term
+# patterns of avoiding delegation.
 WINDOW_SECONDS = 600  # 10 minutes
 
 

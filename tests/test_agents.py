@@ -2,7 +2,6 @@
 Tests for the hierarchical agent system.
 """
 
-import pytest
 
 from minions.agents.base import (
     CONDUCTOR_PERSONA,
