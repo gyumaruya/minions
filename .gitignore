@@ -56,6 +56,9 @@ logs/
 # Checkpoints (session-specific, may contain sensitive info)
 .claude/checkpoints/
 
+# Memory sessions (user-specific, session data)
+.claude/memory/sessions/
+
 # Jupyter
 .ipynb_checkpoints/
 .claude/.session-pr-created
