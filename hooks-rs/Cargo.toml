@@ -2,6 +2,7 @@
 resolver = "2"
 members = [
     "crates/hook-common",
+    "crates/hook-memory",
     "crates/hooks/enforce-no-merge",
     "crates/hooks/enforce-draft-pr",
     "crates/hooks/prevent-secrets-commit",
@@ -44,3 +45,4 @@ insta = { version = "1.39", features = ["yaml"] }
 
 # Internal
 hook-common = { path = "crates/hook-common" }
+hook-memory = { path = "crates/hook-memory" }

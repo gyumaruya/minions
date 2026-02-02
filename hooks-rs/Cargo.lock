@@ -199,6 +199,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "hook-memory"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "camino",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "thiserror",
+]
+
+[[package]]
 name = "insta"
 version = "1.46.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
