@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-from __future__ import annotations
-
 """
 Post-tool hook: Run formatter and type checker on Python files after Edit/Write.
 
 Triggered after Edit or Write tools modify files.
 Runs ruff (format + lint) and ty (type check) on Python files.
 """
+
+from __future__ import annotations
 
 import json
 import os
@@ -100,32 +100,41 @@ def main() -> None:
         if output.strip():
             issues.append(f"ruff check issues:\n{output}")
 
-    # Run ty type check
+    # Run ty type check (skip if not installed)
     ret, stdout, stderr = run_command(
         ["uv", "run", "ty", "check", file_path],
         cwd=project_dir,
     )
     if ret != 0:
         output = stdout or stderr
-        if output.strip():
+        # Skip if ty is not installed
+        if "Failed to spawn" in output or "not found" in output.lower():
+            pass  # ty not installed, skip
+        elif output.strip():
             issues.append(f"ty check issues:\n{output}")
 
     # Report results via hookSpecificOutput
     if issues:
         message = f"[lint-on-save] Issues in {rel_path}:\n" + "\n".join(issues)
-        json.dump({
-            "hookSpecificOutput": {
-                "hookEventName": "PostToolUse",
-                "additionalContext": message
-            }
-        }, sys.stdout)
+        json.dump(
+            {
+                "hookSpecificOutput": {
+                    "hookEventName": "PostToolUse",
+                    "additionalContext": message,
+                }
+            },
+            sys.stdout,
+        )
     else:
-        json.dump({
-            "hookSpecificOutput": {
-                "hookEventName": "PostToolUse",
-                "additionalContext": f"[lint-on-save] OK: {rel_path} passed all checks"
-            }
-        }, sys.stdout)
+        json.dump(
+            {
+                "hookSpecificOutput": {
+                    "hookEventName": "PostToolUse",
+                    "additionalContext": f"[lint-on-save] OK: {rel_path} passed all checks",
+                }
+            },
+            sys.stdout,
+        )
 
     sys.exit(0)
 

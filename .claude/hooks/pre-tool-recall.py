@@ -13,15 +13,17 @@ from __future__ import annotations
 
 import json
 import os
-import subprocess
 import sys
 from pathlib import Path
 
 # Add src to path
+sys.path.insert(0, str(Path(__file__).parent.parent / "scripts"))
+from config_utils import get_openai_api_key
+
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
 
 # Tools that benefit from memory recall
-RECALL_TOOLS = {Ω
+RECALL_TOOLS = {
     "Bash": True,
     "Edit": True,
     "Write": True,
@@ -53,38 +55,6 @@ TOOL_SCORE_THRESHOLDS = {
 def get_score_threshold(tool_name: str) -> float:
     """Get score threshold for tool type."""
     return TOOL_SCORE_THRESHOLDS.get(tool_name, 0.7)  # Default 0.7
-
-
-def get_openai_api_key_from_keychain() -> str | None:
-    """Get OpenAI API key from macOS Keychain."""
-    try:
-        username = os.environ.get("USER", "")
-        if not username:
-            return None
-
-        result = subprocess.run(
-            [
-                "security",
-                "find-generic-password",
-                "-a",
-                username,
-                "-s",
-                "openai-api-key",
-                "-w",
-            ],
-            capture_output=True,
-            text=True,
-            timeout=5,
-        )
-
-        if result.returncode == 0:
-            api_key = result.stdout.strip()
-            return api_key if api_key else None
-
-        return None
-
-    except (subprocess.TimeoutExpired, subprocess.SubprocessError, Exception):
-        return None
 
 
 def build_search_query(tool_name: str, tool_input: dict) -> str:
@@ -127,7 +97,7 @@ def recall_memories(tool_name: str, tool_input: dict) -> list[dict]:
         from minions.memory.scoring import ScoringContext, calculate_recall_score
 
         # Try to get API key from Keychain
-        api_key = get_openai_api_key_from_keychain()
+        api_key = get_openai_api_key()
         enable_mem0 = False
 
         if api_key:

@@ -1,6 +1,10 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
+import json
+import sys
+from pathlib import Path
+
 """
 PostToolUse hook: Suggest Codex review after Plan tasks.
 
@@ -8,8 +12,9 @@ This hook runs after Task tool execution and suggests Codex consultation
 for reviewing plans and implementation strategies.
 """
 
-import json
-import sys
+# Add scripts to path
+sys.path.insert(0, str(Path(__file__).parent.parent / "scripts"))
+from config_utils import is_agent_enabled
 
 # Task descriptions that suggest planning/design work
 PLAN_INDICATORS = [
@@ -27,7 +32,9 @@ PLAN_INDICATORS = [
 ]
 
 
-def should_suggest_codex_review(tool_input: dict, tool_output: str | None = None) -> tuple[bool, str]:
+def should_suggest_codex_review(
+    tool_input: dict, tool_output: str | None = None
+) -> tuple[bool, str]:
     """Determine if Codex review should be suggested after task completion."""
     subagent_type = tool_input.get("subagent_type", "").lower()
     description = tool_input.get("description", "").lower()
@@ -47,6 +54,10 @@ def should_suggest_codex_review(tool_input: dict, tool_output: str | None = None
 
 
 def main():
+    # Skip if Codex agent is disabled
+    if not is_agent_enabled("codex"):
+        sys.exit(0)
+
     try:
         data = json.load(sys.stdin)
         tool_name = data.get("tool_name", "")
@@ -69,7 +80,7 @@ def main():
                         "Consider having Codex review this plan for potential improvements. "
                         "**Recommended**: Use Task tool with subagent_type='general-purpose' "
                         "to consult Codex and preserve main context."
-                    )
+                    ),
                 }
             }
             print(json.dumps(output))

@@ -1,6 +1,10 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
+import json
+import sys
+from pathlib import Path
+
 """
 PreToolUse hook: Check if Codex consultation is recommended before Write/Edit.
 
@@ -8,9 +12,9 @@ This hook analyzes the file being modified and suggests Codex consultation
 for design decisions, complex implementations, or architectural changes.
 """
 
-import json
-import sys
-from pathlib import Path
+# Add scripts to path
+sys.path.insert(0, str(Path(__file__).parent.parent / "scripts"))
+from config_utils import is_agent_enabled
 
 # Input validation constants
 MAX_PATH_LENGTH = 4096
@@ -45,7 +49,6 @@ DESIGN_INDICATORS = [
     "/core/",
     "config",
     "settings",
-
     # Code patterns in content
     "class ",
     "interface ",
@@ -69,10 +72,10 @@ SIMPLE_EDIT_PATTERNS = [
 ]
 
 
-def should_suggest_codex(file_path: str, content: str | None = None) -> tuple[bool, str]:
+def should_suggest_codex(
+    file_path: str, content: str | None = None
+) -> tuple[bool, str]:
     """Determine if Codex consultation should be suggested."""
-    path = Path(file_path)
-    filename = path.name.lower()
     filepath_lower = file_path.lower()
 
     # Skip simple edits
@@ -94,7 +97,10 @@ def should_suggest_codex(file_path: str, content: str | None = None) -> tuple[bo
         # Check for design patterns in content
         for indicator in DESIGN_INDICATORS:
             if indicator in content:
-                return True, f"Content contains '{indicator}' - likely architectural code"
+                return (
+                    True,
+                    f"Content contains '{indicator}' - likely architectural code",
+                )
 
     # New files in src/ directory
     if "/src/" in file_path or file_path.startswith("src/"):
@@ -105,6 +111,10 @@ def should_suggest_codex(file_path: str, content: str | None = None) -> tuple[bo
 
 
 def main():
+    # Skip if Codex agent is disabled
+    if not is_agent_enabled("codex"):
+        sys.exit(0)
+
     try:
         data = json.load(sys.stdin)
         tool_input = data.get("tool_input", {})
@@ -129,7 +139,7 @@ def main():
                         "to preserve main context. "
                         "(Direct call OK for quick questions: "
                         "`codex exec --model gpt-5.2-codex --sandbox read-only --full-auto '...'`)"
-                    )
+                    ),
                 }
             }
             print(json.dumps(output))

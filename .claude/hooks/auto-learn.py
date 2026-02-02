@@ -15,12 +15,16 @@ from __future__ import annotations
 import json
 import os
 import re
-import subprocess
 import sys
 from pathlib import Path
 
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
+# Add scripts to path
+sys.path.insert(0, str(Path(__file__).parent.parent / "scripts"))
+
+# Import config utilities
+from config_utils import get_openai_api_key
 
 # Correction patterns (Japanese)
 CORRECTION_PATTERNS = [
@@ -46,42 +50,6 @@ TRIGGER_TO_TYPE = {
     "workflow": "workflow",
     "explicit_learn": "preference",
 }
-
-
-def get_openai_api_key_from_keychain() -> str | None:
-    """Get OpenAI API key from macOS Keychain.
-
-    Returns:
-        API key string, or None if not found or error occurred.
-    """
-    try:
-        username = os.environ.get("USER", "")
-        if not username:
-            return None
-
-        result = subprocess.run(
-            [
-                "security",
-                "find-generic-password",
-                "-a",
-                username,
-                "-s",
-                "openai-api-key",
-                "-w",
-            ],
-            capture_output=True,
-            text=True,
-            timeout=5,
-        )
-
-        if result.returncode == 0:
-            api_key = result.stdout.strip()
-            return api_key if api_key else None
-
-        return None
-
-    except (subprocess.TimeoutExpired, subprocess.SubprocessError, Exception):
-        return None
 
 
 def detect_learning(text: str) -> list[tuple[str, str, str]]:
@@ -120,7 +88,7 @@ def save_learning(content: str, memory_type: str, trigger: str) -> bool:
         from minions.memory import AgentType, MemoryBroker, MemoryScope, MemoryType
 
         # Try to get API key from Keychain
-        api_key = get_openai_api_key_from_keychain()
+        api_key = get_openai_api_key()
         enable_mem0 = False
 
         if api_key:
@@ -129,10 +97,10 @@ def save_learning(content: str, memory_type: str, trigger: str) -> bool:
             enable_mem0 = True
 
             # Log to stderr for hook debugging
-            print("[auto-learn] mem0 enabled via Keychain API key", file=sys.stderr)
+            print("[auto-learn] mem0 enabled via API key", file=sys.stderr)
         else:
             print(
-                "[auto-learn] Keychain API key not found, using JSONL fallback",
+                "[auto-learn] API key not found, using JSONL fallback",
                 file=sys.stderr,
             )
 

@@ -13,11 +13,13 @@ from __future__ import annotations
 
 import json
 import os
-import subprocess
 import sys
 from pathlib import Path
 
 # Add src to path
+sys.path.insert(0, str(Path(__file__).parent.parent / "scripts"))
+from config_utils import get_openai_api_key
+
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
 
 # Tools worth recording (significant actions)
@@ -45,38 +47,6 @@ SKIP_TOOLS = {
 # that storage/memory usage stays bounded. Adjust with care if memory
 # backends or storage limits change.
 MAX_CONTENT_LENGTH = 500
-
-
-def get_openai_api_key_from_keychain() -> str | None:
-    """Get OpenAI API key from macOS Keychain."""
-    try:
-        username = os.environ.get("USER", "")
-        if not username:
-            return None
-
-        result = subprocess.run(
-            [
-                "security",
-                "find-generic-password",
-                "-a",
-                username,
-                "-s",
-                "openai-api-key",
-                "-w",
-            ],
-            capture_output=True,
-            text=True,
-            timeout=5,
-        )
-
-        if result.returncode == 0:
-            api_key = result.stdout.strip()
-            return api_key if api_key else None
-
-        return None
-
-    except (subprocess.TimeoutExpired, subprocess.SubprocessError, Exception):
-        return None
 
 
 def truncate_content(content: str, max_length: int = MAX_CONTENT_LENGTH) -> str:
@@ -155,7 +125,7 @@ def record_tool_result(
         from minions.memory.scoring import ScoringContext
 
         # Try to get API key from Keychain
-        api_key = get_openai_api_key_from_keychain()
+        api_key = get_openai_api_key()
         enable_mem0 = False
 
         if api_key:
