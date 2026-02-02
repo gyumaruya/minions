@@ -1,275 +1,392 @@
-# claude-code-orchestra
+# Minions
 
-![Claude Code Orchestra](./summary.png)
-
-Multi-Agent AI Development Environment
+**黄色い精霊たちがあなたの開発を加速する**
 
 ```
-Claude Code (Orchestrator) ─┬─ Codex CLI (Deep Reasoning)
-                            ├─ Gemini CLI (Research)
-                            ├─ Copilot CLI (Cost-effective Default)
-                            └─ Subagents (Parallel Tasks)
+        ╭──────────────────────────────────────╮
+        │   "Bee-do! Bee-do!"                  │
+        │                                      │
+        │      ╭─────╮   ╭─────╮   ╭─────╮     │
+        │      │ ◉ ◉ │   │ ◉ ◉ │   │ ◉ ◉ │     │
+        │      │  ▽  │   │  ▽  │   │  ▽  │     │
+        │      ╰─────╯   ╰─────╯   ╰─────╯     │
+        │     Codex     Gemini    Copilot      │
+        │                                      │
+        │   Claude Code が指揮する精霊たち     │
+        ╰──────────────────────────────────────╯
 ```
 
-## Quick Start
+AI エージェントたちを「召喚」し、協調させる開発フレームワーク。
+**記憶と改善ループ**を Hooks で強制し、使うほど賢くなる自己改善システム。
 
-既存プロジェクトのルートで実行:
+---
 
-```bash
-git clone --depth 1 https://github.com/DeL-TaiseiOzaki/claude-code-orchestra.git .starter && cp -r .starter/.claude .starter/.codex .starter/.gemini .starter/CLAUDE.md . && rm -rf .starter && claude
+## Why Minions?
+
+| 課題 | Minions の解決策 |
+|------|------------------|
+| Claude Code 単体では深い推論が苦手 | **Codex** を召喚して設計相談 |
+| 大規模コードベースの理解が難しい | **Gemini** (1M tokens) で全体分析 |
+| コストが心配 | **Copilot** (Sonnet 無料枠) をデフォルトに |
+| 学習が蓄積しない | **Memory Layer** で自己改善 |
+| 口約束で守られない | **Hooks** でワークフローを強制 |
+
+---
+
+## Concept
+
+### 1. Multi-Agent Orchestration
+
+Claude Code を**指揮者**として、専門家エージェントを召喚:
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    Claude Code (Conductor)                   │
+│                    Leonardo da Vinci の視点で統括            │
+│                                                             │
+│   ┌─────────────┐  ┌─────────────┐  ┌─────────────┐         │
+│   │   Codex    │  │   Gemini   │  │  Copilot   │         │
+│   │  深い推論   │  │  リサーチ   │  │ コスト効率  │         │
+│   │  設計判断   │  │  1M tokens │  │  デフォルト │         │
+│   └─────────────┘  └─────────────┘  └─────────────┘         │
+└─────────────────────────────────────────────────────────────┘
 ```
 
-## Prerequisites
+### 2. Hierarchical Agents with Personas
 
-### Claude Code
+歴史上の天才たちをペルソナとして採用:
 
-```bash
-npm install -g @anthropic-ai/claude-code
-claude login
+| Role | Persona | Philosophy |
+|------|---------|------------|
+| **Conductor** | Leonardo da Vinci | "Simplicity is the ultimate sophistication." |
+| **Musician** | Richard Feynman | "Don't fool yourself." |
+
+**Conductor** (da Vinci) が全体を俯瞰し、**Musician** (Feynman) が手を動かして実装する。
+
+### 3. Self-Improving Memory
+
+使うほど賢くなる記憶システム:
+
+```
+セッション開始
+    ↓
+[Hook] load-memories.py → 過去の記憶を自動注入
+    ↓
+ユーザー: 「PRは日本語にして」
+    ↓
+[Hook] auto-learn.py → パターンを自動検出・記憶
+    ↓
+次回セッションで自動反映
 ```
 
-### Codex CLI
+### 4. Hook-Enforced Workflows
 
-```bash
-npm install -g @openai/codex
-codex login
+「やろう」ではなく「やらざるを得ない」仕組み:
+
+```
+❌ Prompt だけ: 「PRは日本語で書いてね」→ 忘れる
+✅ Hook 強制:   enforce-japanese.py が英語PRをブロック
 ```
 
-### Gemini CLI
+---
 
-```bash
-npm install -g @google/gemini-cli
-gemini login
-```
+## Inspirations
+
+Minions は以下のプロジェクトから着想を得ています:
+
+| Project | Contribution |
+|---------|--------------|
+| [claude-code-orchestra](https://github.com/DeL-TaiseiOzaki/claude-code-orchestra) | ベースアーキテクチャ、エージェント協調パターン |
+| [multi-agent-shogun](https://github.com/y-i-labs/multi-agent-shogun) | 階層型エージェント、歴史的ペルソナの採用 |
+| [mem0](https://github.com/mem0ai/mem0) | 記憶レイヤー、セマンティック検索、自己改善ループ |
+
+---
 
 ## Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│           Claude Code (Orchestrator)                        │
-│           → コンテキスト節約が最優先                         │
-│           → ユーザー対話・調整・実行を担当                   │
-│                      ↓                                      │
-│  ┌───────────────────────────────────────────────────────┐  │
-│  │              Subagent (general-purpose)               │  │
-│  │              → 独立したコンテキストを持つ               │  │
-│  │              → Codex/Gemini を呼び出し可能             │  │
-│  │              → 結果を要約してメインに返す              │  │
-│  │                                                       │  │
-│  │   ┌──────────────┐  ┌──────────────┐  ┌──────────────┐│  │
-│  │   │  Codex CLI   │  │  Gemini CLI  │  │  Copilot CLI ││  │
-│  │   │  設計・推論  │  │  リサーチ    │  │  デフォルト  ││  │
-│  │   │  デバッグ    │  │  マルチモーダル│  │  コスト効率  ││  │
-│  │   └──────────────┘  └──────────────┘  └──────────────┘│  │
-│  └───────────────────────────────────────────────────────┘  │
-└─────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────┐
+│                         User (ユーザー)                          │
+└──────────────────────────────┬──────────────────────────────────┘
+                               │
+                               ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                    CONDUCTOR (Claude Code)                       │
+│                                                                 │
+│  ┌─────────────────────────────────────────────────────────┐   │
+│  │                    Hooks Layer                           │   │
+│  │  • load-memories.py    - 記憶を注入                      │   │
+│  │  • auto-learn.py       - 学習パターン検出                │   │
+│  │  • agent-router.py     - 適切なエージェントへルーティング │   │
+│  │  • enforce-*.py        - ワークフロー強制                │   │
+│  └─────────────────────────────────────────────────────────┘   │
+│                                                                 │
+│  ┌─────────────────────────────────────────────────────────┐   │
+│  │                    Memory Broker                         │   │
+│  │  JSONL (真実の源泉) ←→ mem0 (セマンティック検索)          │   │
+│  └─────────────────────────────────────────────────────────┘   │
+│                                                                 │
+│  ┌───────────────┐  ┌───────────────┐  ┌───────────────┐       │
+│  │    Codex     │  │    Gemini    │  │   Copilot    │       │
+│  │   gpt-5.2    │  │  gemini-3-pro │  │  sonnet-4    │       │
+│  │   設計・推論  │  │   リサーチ    │  │  デフォルト   │       │
+│  └───────────────┘  └───────────────┘  └───────────────┘       │
+│                               │                                 │
+│                               ▼                                 │
+│  ┌─────────────────────────────────────────────────────────┐   │
+│  │                      MUSICIAN                            │   │
+│  │                (Subagent - Richard Feynman)              │   │
+│  │                   実装・検証・報告                        │   │
+│  └─────────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
-### コンテキスト管理（重要）
+---
 
-メインオーケストレーターのコンテキストを節約するため、大きな出力が予想されるタスクはサブエージェント経由で実行します。
+## Quick Start
 
-| 状況 | 推奨方法 |
-|------|----------|
-| 大きな出力が予想される | サブエージェント経由 |
-| 短い質問・短い回答 | 直接呼び出しOK |
-| Codex/Gemini相談 | サブエージェント経由 |
-| 詳細な分析が必要 | サブエージェント経由 → ファイル保存 |
-
-## Directory Structure
-
-```
-.
-├── CLAUDE.md                    # メインシステムドキュメント
-├── README.md
-├── pyproject.toml               # Python プロジェクト設定
-├── uv.lock                      # 依存関係ロックファイル
-│
-├── .claude/
-│   ├── agents/
-│   │   └── general-purpose.md   # サブエージェント設定
-│   │
-│   ├── skills/                  # 再利用可能なワークフロー
-│   │   ├── startproject/        # プロジェクト開始
-│   │   ├── plan/                # 実装計画作成
-│   │   ├── tdd/                 # テスト駆動開発
-│   │   ├── checkpointing/       # セッション永続化
-│   │   ├── codex-system/        # Codex CLI連携
-│   │   ├── gemini-system/       # Gemini CLI連携
-│   │   └── ...
-│   │
-│   ├── hooks/                   # 自動化フック
-│   │   ├── agent-router.py      # エージェントルーティング
-│   │   ├── lint-on-save.py      # 保存時自動lint
-│   │   └── ...
-│   │
-│   ├── rules/                   # 開発ガイドライン
-│   │   ├── coding-principles.md
-│   │   ├── testing.md
-│   │   └── ...
-│   │
-│   ├── docs/
-│   │   ├── DESIGN.md            # 設計決定記録
-│   │   ├── research/            # Gemini調査結果
-│   │   └── libraries/           # ライブラリ制約
-│   │
-│   └── logs/
-│       └── cli-tools.jsonl      # Codex/Gemini入出力ログ
-│
-├── .codex/                      # Codex CLI設定
-│   ├── AGENTS.md
-│   └── config.toml
-│
-└── .gemini/                     # Gemini CLI設定
-    ├── GEMINI.md
-    └── settings.json
-```
-
-## Skills
-
-### `/startproject` — プロジェクト開始
-
-マルチエージェント協調でプロジェクトを開始します。
-
-```
-/startproject ユーザー認証機能
-```
-
-**ワークフロー:**
-1. **Gemini** → リポジトリ分析・事前調査
-2. **Claude** → 要件ヒアリング・計画作成
-3. **Codex** → 計画レビュー・リスク分析
-4. **Claude** → タスクリスト作成
-
-### `/plan` — 実装計画
-
-要件を具体的なステップに分解します。
-
-```
-/plan APIエンドポイントの追加
-```
-
-**出力:**
-- 実装ステップ（ファイル・変更内容・検証方法）
-- 依存関係・リスク
-- 検証基準
-
-### `/tdd` — テスト駆動開発
-
-Red-Green-Refactorサイクルで実装します。
-
-```
-/tdd ユーザー登録機能
-```
-
-**ワークフロー:**
-1. テストケース設計
-2. 失敗するテスト作成（Red）
-3. 最小限の実装（Green）
-4. リファクタリング（Refactor）
-
-### `/checkpointing` — セッション永続化
-
-セッションの状態を保存します。
+### Prerequisites
 
 ```bash
-/checkpointing              # 基本: 履歴ログ
-/checkpointing --full       # 完全: git履歴・ファイル変更含む
-/checkpointing --analyze    # 分析: 再利用可能なスキルパターン発見
+# Claude Code
+npm install -g @anthropic-ai/claude-code
+claude login
+
+# Codex CLI
+npm install -g @openai/codex
+codex login
+
+# Gemini CLI
+npm install -g @google/gemini-cli
+gemini login
+
+# Copilot CLI (オプション)
+npm install -g @anthropic-ai/claude-code  # claude の alias として copilot を使用
 ```
 
-### `/codex-system` — Codex CLI連携
+### Installation
 
-設計判断・デバッグ・トレードオフ分析に使用します。
+既存プロジェクトに導入:
 
-**トリガー例:**
-- 「どう設計すべき？」「どう実装する？」
-- 「なぜ動かない？」「エラーが出る」
-- 「どちらがいい？」「比較して」
+```bash
+git clone --depth 1 https://github.com/gyumaruya/minions.git .minions-starter
+cp -r .minions-starter/.claude .minions-starter/.codex .minions-starter/.gemini .minions-starter/CLAUDE.md .
+rm -rf .minions-starter
 
-### `/gemini-system` — Gemini CLI連携
+# Python 依存関係（Memory Layer 用）
+uv sync
+```
 
-リサーチ・大規模分析・マルチモーダル処理に使用します。
+### Start
 
-**トリガー例:**
-- 「調べて」「リサーチして」
-- 「このPDF/動画を見て」
-- 「コードベース全体を理解して」
+```bash
+claude
+```
 
-### `/simplify` — コードリファクタリング
+セッション開始時に自動で:
+1. 過去の記憶をコンテキストに注入
+2. Draft PR を自動作成
+3. エージェントルーティングを有効化
 
-コードを簡潔化・可読性向上させます。
+---
 
-### `/design-tracker` — 設計決定追跡
+## Key Features
 
-アーキテクチャ・実装決定を自動記録します。
+### Agent Selection (自動)
+
+```
+ユーザー: 「どう設計すべき？」
+    ↓
+[Hook] agent-router.py
+    ↓
+→ Codex を推奨（設計タスク検出）
+
+ユーザー: 「調べて」
+    ↓
+→ Gemini を推奨（リサーチタスク検出）
+
+ユーザー: 「この関数を直して」
+    ↓
+→ Copilot を推奨（一般タスク）
+```
+
+### Memory System (自動学習)
+
+```bash
+# 自動学習（Hook による検出）
+ユーザー: 「PRは日本語にして」
+→ preference として自動記憶
+
+# 手動記憶
+/remember PRは日本語で書く
+
+# 検索
+/remember search 日本語
+
+# CLI
+uv run python -m minions.memory.cli list
+```
+
+### Hook-Enforced Rules
+
+| Hook | 強制内容 |
+|------|----------|
+| `enforce-japanese.py` | PR/コミットは日本語必須 |
+| `enforce-draft-pr.py` | PR は必ず Draft で作成 |
+| `enforce-no-merge.py` | エージェントによるマージ禁止 |
+| `enforce-delegation.py` | Conductor は委譲を強制 |
+| `prevent-secrets-commit.py` | シークレットのコミットブロック |
+
+---
+
+## Hooks (ワークフロー強制)
+
+### Memory Hooks
+
+| Hook | Timing | 機能 |
+|------|--------|------|
+| `load-memories.py` | セッション開始 | 過去の記憶をコンテキストに注入 |
+| `auto-learn.py` | プロンプト送信時 | ユーザー修正パターンを自動学習 |
+
+### Agent Hooks
+
+| Hook | Timing | 機能 |
+|------|--------|------|
+| `agent-router.py` | プロンプト送信時 | 適切なエージェントを推奨 |
+| `hierarchy-permissions.py` | サブエージェント spawn 時 | 許可を自動委譲 |
+| `enforce-delegation.py` | ツール使用時 | Conductor の過度な直接作業をブロック |
+
+### Quality Hooks
+
+| Hook | Timing | 機能 |
+|------|--------|------|
+| `lint-on-save.py` | ファイル保存後 | 自動 lint 実行 |
+| `check-codex-before-write.py` | ファイル書き込み前 | Codex 相談を提案 |
+| `post-test-analysis.py` | テスト実行後 | 失敗分析・改善提案 |
+
+### Git Hooks
+
+| Hook | Timing | 機能 |
+|------|--------|------|
+| `auto-create-pr.py` | セッション開始 | Draft PR 自動作成 |
+| `enforce-draft-pr.py` | PR 作成時 | Draft 強制 |
+| `enforce-no-merge.py` | マージ操作時 | マージをブロック |
+| `enforce-japanese.py` | コミット/PR 時 | 日本語強制 |
+
+---
+
+## Skills (再利用可能なワークフロー)
+
+```bash
+/startproject <機能名>   # マルチエージェント協調でプロジェクト開始
+/plan <タスク>           # 実装計画を作成
+/tdd <機能>              # テスト駆動開発
+/remember <内容>         # 記憶を保存
+/delegate <タスク>       # Musician に委譲
+/checkpointing           # セッション状態を保存
+```
+
+---
+
+## Memory Layer
+
+### 3-Layer Memory
+
+| Layer | Scope | 永続性 | 用途 |
+|-------|-------|--------|------|
+| **Session** | セッション内 | 一時的 | 作業コンテキスト |
+| **User** | ユーザー全体 | 永続 | 好み、ワークフロー |
+| **Public** | エージェント間 | 永続 | 設計決定、リサーチ |
+
+### Memory Types
+
+| Type | 用途 | 自動学習 |
+|------|------|---------|
+| `preference` | ユーザーの好み | ✓「〜にして」 |
+| `workflow` | ワークフロー | ✓「いつも〜」 |
+| `decision` | 設計判断 | - |
+| `error` | エラーパターン | ✓ 解決時 |
+| `research` | リサーチ結果 | - |
+
+### Storage
+
+```
+.claude/memory/
+├── events.jsonl              # メイン記憶 (JSONL)
+├── sessions/                 # セッション別記憶
+└── qdrant/                   # mem0 ベクトル DB
+```
+
+---
 
 ## Development
 
 ### Tech Stack
 
-| ツール | 用途 |
-|--------|------|
-| **jj** | バージョン管理（git直接操作禁止、main直接プッシュ禁止） |
-| **uv** | パッケージ管理（pip禁止） |
-| **ruff** | リント・フォーマット |
+| Tool | Purpose |
+|------|---------|
+| **git** | バージョン管理（main 直接プッシュ禁止） |
+| **uv** | パッケージ管理（pip 禁止） |
+| **ruff** | Lint / Format |
 | **ty** | 型チェック |
 | **pytest** | テスト |
-| **poethepoet** | タスクランナー |
 
 ### Commands
 
 ```bash
-# 依存関係
-uv add <package>           # パッケージ追加
-uv add --dev <package>     # 開発依存追加
-uv sync                    # 依存関係同期
-
 # 品質チェック
-poe lint                   # ruff check + format
-poe typecheck              # ty
-poe test                   # pytest
-poe all                    # 全チェック実行
+poe lint        # ruff check + format
+poe typecheck   # ty check
+poe test        # pytest
+poe all         # 全チェック
 
-# 直接実行
-uv run pytest -v
-uv run ruff check .
+# Memory CLI
+uv run python -m minions.memory.cli list
+uv run python -m minions.memory.cli search "keyword"
 ```
 
-## Hooks
+---
 
-自動化フックにより、適切なタイミングでエージェント連携を提案します。
+## Vision
 
-| フック | トリガー | 動作 |
-|--------|----------|------|
-| `agent-router.py` | ユーザー入力 | Codex/Gemini/Copilotへのルーティング提案 |
-| `auto-commit-on-verify.py` | テスト/検証成功 | Feature Branch → PR 作成を提案 |
-| `lint-on-save.py` | ファイル保存 | 自動lint実行 |
-| `check-codex-before-write.py` | ファイル書き込み前 | Codex相談提案 |
-| `log-cli-tools.py` | Codex/Gemini実行 | 入出力ログ記録 |
+Minions が目指す姿:
 
-## Version Control (jj)
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                                                                 │
+│   🎯 Self-Improving AI Development Environment                  │
+│                                                                 │
+│   ┌─────────────────────────────────────────────────────────┐   │
+│   │  1. 記憶する   │ 過去の学びを蓄積、同じミスを繰り返さない │   │
+│   │  2. 改善する   │ パターンを検出し、自動でルール化        │   │
+│   │  3. 強制する   │ Hooks で「忘れない」を実現              │   │
+│   │  4. 協調する   │ 適材適所でエージェントを召喚           │   │
+│   └─────────────────────────────────────────────────────────┘   │
+│                                                                 │
+│   使えば使うほど、あなた専用の開発環境に進化する               │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
 
-jj (Jujutsu) をデフォルトのバージョン管理ツールとして使用します。
+---
+
+## Contributing
+
+Issues & PRs welcome!
 
 ```bash
-# 日常作業
-jj status                  # 状態確認
-jj diff                    # 差分表示
-jj describe -m "..."       # コミットメッセージ設定
-
-# Feature Branch → PR → Merge フロー（必須）
-jj git push -c @           # Feature branch 作成 & プッシュ
-gh pr create               # PR 作成
+# 開発環境セットアップ
+git clone https://github.com/gyumaruya/minions.git
+cd minions
+uv sync --all-extras
 ```
 
-**⛔ main への直接プッシュは禁止** — 必ず PR 経由でマージすること。
+---
 
-**📌 常に PR を開いた状態で作業** — PR が開いていれば自動プッシュ（許可不要）。
+## License
 
-## Language Rules
+MIT
 
-- **コード・思考・推論**: 英語
-- **ユーザーへの応答**: 日本語
-- **技術ドキュメント**: 英語
-- **README等**: 日本語可
+---
+
+*"Banana!" - The Minions*
