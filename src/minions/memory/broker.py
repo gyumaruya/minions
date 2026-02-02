@@ -13,7 +13,10 @@ import json
 import re
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from minions.memory.scoring import ScoringContext
 
 from minions.memory.schema import (
     SENSITIVE_PATTERNS,
@@ -131,6 +134,7 @@ class MemoryBroker:
         confidence: float = 1.0,
         tags: list[str] | None = None,
         metadata: dict[str, Any] | None = None,
+        scoring_context: "ScoringContext | None" = None,
     ) -> MemoryEvent:
         """
         Convenience method to add a memory.
@@ -144,6 +148,7 @@ class MemoryBroker:
             confidence: Confidence score (0-1)
             tags: Tags for categorization
             metadata: Additional metadata
+            scoring_context: Optional context for importance scoring
 
         Returns:
             Created MemoryEvent
@@ -156,6 +161,29 @@ class MemoryBroker:
         if isinstance(source_agent, str):
             source_agent = AgentType(source_agent)
 
+        # Prepare metadata with importance score
+        final_metadata = metadata.copy() if metadata else {}
+
+        # Calculate importance score if scoring context provided
+        if scoring_context is not None:
+            from minions.memory.scoring import (
+                calculate_importance_score,
+            )
+
+            # Create temporary event for scoring
+            temp_event = MemoryEvent(
+                content=content,
+                memory_type=memory_type,
+                scope=scope,
+                source_agent=source_agent,
+                context=context,
+                confidence=confidence,
+                tags=tags or [],
+                metadata=final_metadata,
+            )
+            importance = calculate_importance_score(temp_event, scoring_context)
+            final_metadata["importance_score"] = importance
+
         event = MemoryEvent(
             content=content,
             memory_type=memory_type,
@@ -164,10 +192,73 @@ class MemoryBroker:
             context=context,
             confidence=confidence,
             tags=tags or [],
-            metadata=metadata or {},
+            metadata=final_metadata,
         )
 
         return self.write(event)
+
+    def add_tool_result(
+        self,
+        tool_name: str,
+        tool_input: dict[str, Any],
+        result: str,
+        success: bool = True,
+        execution_time_ms: int | None = None,
+        session_id: str | None = None,
+        task_id: str | None = None,
+    ) -> MemoryEvent:
+        """
+        Record a tool execution result with automatic importance scoring.
+
+        Args:
+            tool_name: Name of the tool (e.g., 'Bash', 'Edit', 'Read')
+            tool_input: Tool input parameters
+            result: Tool output/result summary
+            success: Whether tool succeeded
+            execution_time_ms: Execution time in milliseconds
+            session_id: Current session ID
+            task_id: Current task ID
+
+        Returns:
+            Created MemoryEvent with importance score
+        """
+        from minions.memory.scoring import ScoringContext
+
+        # Create scoring context
+        scoring_ctx = ScoringContext(
+            tool_name=tool_name,
+            tool_success=success,
+            execution_time_ms=execution_time_ms,
+            session_id=session_id,
+            task_id=task_id,
+        )
+
+        # Build content
+        content = f"Tool: {tool_name}\nResult: {result}"
+        if not success:
+            content = f"[FAILURE] {content}"
+
+        # Build metadata
+        metadata = {
+            "tool_name": tool_name,
+            "tool_input": tool_input,
+            "outcome": "success" if success else "failure",
+            "execution_time_ms": execution_time_ms,
+        }
+        if session_id:
+            metadata["session_id"] = session_id
+        if task_id:
+            metadata["task_id"] = task_id
+
+        return self.add(
+            content=content,
+            memory_type=MemoryType.OBSERVATION,
+            scope=MemoryScope.SESSION,
+            source_agent=AgentType.CLAUDE,
+            context=f"tool:{tool_name}",
+            metadata=metadata,
+            scoring_context=scoring_ctx,
+        )
 
     def _validate(self, event: MemoryEvent) -> None:
         """Validate memory event."""
@@ -331,7 +422,9 @@ class MemoryBroker:
         if scope is None or scope == MemoryScope.SESSION:
             for session_file in self.sessions_dir.glob("*.jsonl"):
                 for event in self._load_jsonl(session_file):
-                    if self._matches(event, query_lower, scope, source_agent, memory_type):
+                    if self._matches(
+                        event, query_lower, scope, source_agent, memory_type
+                    ):
                         results.append(event)
 
         # Sort by recency
@@ -472,9 +565,7 @@ class MemoryBroker:
 
         # Count session files
         session_files = list(self.sessions_dir.glob("*.jsonl"))
-        session_events = sum(
-            len(self._load_jsonl(f)) for f in session_files
-        )
+        session_events = sum(len(self._load_jsonl(f)) for f in session_files)
 
         # Count by type
         by_type = {}
@@ -482,8 +573,12 @@ class MemoryBroker:
         by_scope = {}
 
         for event in events:
-            by_type[event.memory_type.value] = by_type.get(event.memory_type.value, 0) + 1
-            by_agent[event.source_agent.value] = by_agent.get(event.source_agent.value, 0) + 1
+            by_type[event.memory_type.value] = (
+                by_type.get(event.memory_type.value, 0) + 1
+            )
+            by_agent[event.source_agent.value] = (
+                by_agent.get(event.source_agent.value, 0) + 1
+            )
             by_scope[event.scope.value] = by_scope.get(event.scope.value, 0) + 1
 
         return {
