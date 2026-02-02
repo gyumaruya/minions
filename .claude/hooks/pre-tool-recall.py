@@ -21,7 +21,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
 
 # Tools that benefit from memory recall
-RECALL_TOOLS = {
+RECALL_TOOLS = {Ω
     "Bash": True,
     "Edit": True,
     "Write": True,
@@ -29,6 +29,7 @@ RECALL_TOOLS = {
     "WebFetch": True,
     "WebSearch": True,
 }
+
 
 # Maximum memories to inject.
 # We cap this at 5 to balance usefulness against context window usage:

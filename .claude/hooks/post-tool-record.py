@@ -38,6 +38,7 @@ SKIP_TOOLS = {
     "LS": True,
 }
 
+
 # Maximum content length to record.
 # 500 characters is a compromise between capturing enough detail for
 # useful self-improvement memories and keeping each record small so
