@@ -54,6 +54,16 @@ Self-improvement uses a policy feedback loop: retrieval outcomes and task result
 | Library | Role | Version | Notes |
 |---------|------|---------|-------|
 | mem0 | Vector memory store/retriever | TBD | Optional semantic index, not SoT |
+| serde + serde_json | JSON I/O for hooks and memory events | TBD | Std JSON stdin/stdout, JSONL |
+| regex | Pattern matching in hooks | TBD | Replace Python re usage |
+| camino | UTF-8 friendly paths | TBD | Cross-platform path handling |
+| tempfile | Temp files/dirs | TBD | Replace /tmp assumptions |
+| fs2 | File locks | TBD | Atomic state handling across OS |
+| tracing | Structured logging | TBD | Hook diagnostics |
+| thiserror/anyhow | Error handling | TBD | Consistent error surfaces |
+| assert_cmd + predicates | CLI integration tests | TBD | Cross-platform hook tests |
+| insta | Snapshot/golden tests | TBD | JSON stdout snapshotting for hooks |
+| jsonschema (or schemars) | Contract tests for hook I/O | TBD | Validate stdin/stdout structure |
 
 ### Key Decisions
 
@@ -81,6 +91,14 @@ Self-improvement uses a policy feedback loop: retrieval outcomes and task result
 | Use tiered memory (hot/warm/cold) with boundary summaries | Reduce context size while preserving signal | Flat store | 2026-02-01 |
 | Update scoring and retrieval policy from observed outcomes | Continuous improvement with measurable feedback | Static heuristics | 2026-02-01 |
 | Store delegation enforcement state under project-controlled `.claude/.delegation-state/` with atomic writes and missing-state warnings | Reduce `/tmp` tampering and make enforcement state auditable | Keep state in `/tmp`, rely on delete-block hooks | 2026-02-02 |
+| Migrate hook executables toward Rust binaries; allow compiled Python (PyInstaller/Nuitka) as short-term stabilization | Rust provides single static-ish binaries, strong typing, predictable runtime; compiled Python reduces env drift quickly | Stay on pure Python, move to Go | 2026-02-02 |
+| Keep Memory Broker as a Python sidecar service during early hook migration | Minimizes risk; preserves mem0 integration while hooks are stabilized | Full Rust port immediately | 2026-02-02 |
+| Introduce cross-platform hook test harness with JSON fixtures and snapshot outputs | Prevent regressions across macOS/Linux/Windows | Manual testing only | 2026-02-02 |
+| Use record/replay fixtures to capture Python hook stdin/stdout and run differential tests against Rust | Ensures behavioral parity during migration | Handwritten tests only, manual spot checks | 2026-02-02 |
+| Organize hook fixtures per hook with golden outputs + error cases | Scales to 24 hooks and keeps parity checks focused | Monolithic fixture file | 2026-02-02 |
+| Normalize JSON in parity tests (sorted keys, filtered volatile fields) | Prevents flaky diffs while preserving behavior | Raw text compare only | 2026-02-02 |
+| Use per-hook fixture folders with case metadata + stdin.json + expected.json | Keeps fixtures readable and supports re-recording | Ad-hoc file naming | 2026-02-02 |
+| Prefer differential tests (Python vs Rust) + snapshots for stdout/stderr | Strong parity guarantee plus readable diffs | Snapshot-only or unit-only | 2026-02-02 |
 
 ## TODO
 
@@ -98,6 +116,13 @@ Self-improvement uses a policy feedback loop: retrieval outcomes and task result
 - [ ] Specify hook-to-phase mapping table and event schema for memory cycle
 - [ ] Implement policy feedback records and per-role retrieval thresholds
 - [ ] Add verification checklist and metrics logging for cycle completeness
+- [ ] Define hook binary build/release pipeline for macOS/Linux/Windows
+- [ ] Define hook stdin/stdout JSON contract tests and fixture library
+- [ ] Add record/replay tool to capture Python hook behavior into fixtures
+- [ ] Add differential test runner that executes Python vs Rust and compares JSON outputs
+- [ ] Define Memory Broker IPC boundary for non-Python hooks (stdin/stdout or local socket)
+- [ ] Define JSON normalization rules (volatile field filters, ordering) for parity tests
+- [ ] Create fixture format spec (case metadata, stdin.json, expected.json, notes)
 
 ## Open Questions
 
@@ -120,4 +145,6 @@ Self-improvement uses a policy feedback loop: retrieval outcomes and task result
 | 2026-02-01 | Added hook-driven memory I/O, lifecycle compaction, and importance scoring decisions |
 | 2026-02-01 | Added hybrid scoring, background orchestrator, and durable retry decisions |
 | 2026-02-01 | Added self-improving hook-driven memory cycle design |
+| 2026-02-02 | Added hook migration testing decisions (record/replay fixtures, differential tests, snapshot tooling) |
 | 2026-02-01 | Clarified no-daemon enforcement and policy-based self-improvement records |
+| 2026-02-02 | Added hook parity testing details (normalization rules, fixture format, differential vs snapshot strategy) |
