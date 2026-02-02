@@ -8,8 +8,11 @@ into the conversation context to guide behavior.
 This hook runs on first UserPromptSubmit of a session.
 """
 
+from __future__ import annotations
+
 import json
 import os
+import subprocess
 import sys
 from pathlib import Path
 
@@ -22,12 +25,65 @@ _ppid = os.environ.get("CLAUDE_SESSION_ID", str(os.getppid()))
 STATE_FILE = Path("/tmp") / f"claude-memory-loaded-{_ppid}.flag"
 
 
+def get_openai_api_key_from_keychain() -> str | None:
+    """Get OpenAI API key from macOS Keychain.
+
+    Returns:
+        API key string, or None if not found or error occurred.
+    """
+    try:
+        username = os.environ.get("USER", "")
+        if not username:
+            return None
+
+        result = subprocess.run(
+            [
+                "security",
+                "find-generic-password",
+                "-a",
+                username,
+                "-s",
+                "openai-api-key",
+                "-w",
+            ],
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+
+        if result.returncode == 0:
+            api_key = result.stdout.strip()
+            return api_key if api_key else None
+
+        return None
+
+    except (subprocess.TimeoutExpired, subprocess.SubprocessError, Exception):
+        return None
+
+
 def get_relevant_memories() -> list[dict]:
     """Get relevant memories directly."""
     try:
         from minions.memory import MemoryBroker, MemoryScope, MemoryType
 
-        broker = MemoryBroker(enable_mem0=False)
+        # Try to get API key from Keychain
+        api_key = get_openai_api_key_from_keychain()
+        enable_mem0 = False
+
+        if api_key:
+            # Set environment variable for mem0
+            os.environ["OPENAI_API_KEY"] = api_key
+            enable_mem0 = True
+
+            # Log to stderr for hook debugging
+            print("[load-memories] mem0 enabled via Keychain API key", file=sys.stderr)
+        else:
+            print(
+                "[load-memories] Keychain API key not found, using JSONL fallback",
+                file=sys.stderr,
+            )
+
+        broker = MemoryBroker(enable_mem0=enable_mem0)
         memories = []
 
         # Get user preferences
@@ -109,7 +165,7 @@ def format_memories_for_context(memories: list[dict]) -> str:
 def main() -> None:
     """Main hook entry point."""
     try:
-        hook_input = json.load(sys.stdin)
+        json.load(sys.stdin)
     except (json.JSONDecodeError, Exception):
         sys.exit(0)
 
@@ -129,12 +185,16 @@ def main() -> None:
     # Format and inject as context
     context = format_memories_for_context(memories)
 
-    json.dump({
-        "hookSpecificOutput": {
-            "hookEventName": "UserPromptSubmit",
-            "additionalContext": context
-        }
-    }, sys.stdout, ensure_ascii=False)
+    json.dump(
+        {
+            "hookSpecificOutput": {
+                "hookEventName": "UserPromptSubmit",
+                "additionalContext": context,
+            }
+        },
+        sys.stdout,
+        ensure_ascii=False,
+    )
     sys.exit(0)
 
 
