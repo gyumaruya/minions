@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 from __future__ import annotations
+
 """
 PreToolUse hook: Check if Codex consultation is recommended before Write/Edit.
 
@@ -8,7 +9,6 @@ for design decisions, complex implementations, or architectural changes.
 """
 
 import json
-import os
 import sys
 from pathlib import Path
 

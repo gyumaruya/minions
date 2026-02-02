@@ -11,7 +11,6 @@ import json
 import os
 import sys
 
-
 # Permission inheritance rules
 HIERARCHY_PERMISSIONS = {
     "conductor": {

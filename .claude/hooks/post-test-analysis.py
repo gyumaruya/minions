@@ -7,8 +7,8 @@ for debugging complex failures.
 """
 
 import json
-import sys
 import re
+import sys
 
 # Commands that run tests or builds
 TEST_BUILD_COMMANDS = [

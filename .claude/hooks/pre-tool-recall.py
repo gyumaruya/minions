@@ -30,7 +30,12 @@ RECALL_TOOLS = {
     "WebSearch": True,
 }
 
-# Maximum memories to inject
+# Maximum memories to inject.
+# We cap this at 5 to balance usefulness against context window usage:
+# - Including a small, fixed number of highly relevant memories avoids
+#   overwhelming the model with past context and pushing out current input.
+# - Empirically, more than ~5 memories tends to add redundancy and noise,
+#   with diminishing returns on relevance while increasing token cost.
 MAX_RECALL = 5
 
 # Tool-specific score thresholds

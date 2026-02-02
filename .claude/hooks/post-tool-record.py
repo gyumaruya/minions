@@ -38,7 +38,11 @@ SKIP_TOOLS = {
     "LS": True,
 }
 
-# Maximum content length to record
+# Maximum content length to record.
+# 500 characters is a compromise between capturing enough detail for
+# useful self-improvement memories and keeping each record small so
+# that storage/memory usage stays bounded. Adjust with care if memory
+# backends or storage limits change.
 MAX_CONTENT_LENGTH = 500
 
 
