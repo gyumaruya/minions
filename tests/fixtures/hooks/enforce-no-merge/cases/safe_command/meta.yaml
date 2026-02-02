@@ -1,0 +1,3 @@
+description: enforce-no-merge - safe_command case
+exit_code: 0
+stderr: null

@@ -1,0 +1,7 @@
+{
+  "tool_input": {
+    "content": "x=1",
+    "file_path": "src/main.py"
+  },
+  "tool_name": "Write"
+}

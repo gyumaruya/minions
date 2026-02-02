@@ -1,0 +1,3 @@
+description: enforce-no-merge - block_gh_pr_merge case
+exit_code: 0
+stderr: null

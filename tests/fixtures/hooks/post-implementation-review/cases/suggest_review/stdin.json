@@ -1,0 +1,7 @@
+{
+  "tool_input": {
+    "content": "class Feature: ...",
+    "file_path": "src/feature.py"
+  },
+  "tool_name": "Write"
+}

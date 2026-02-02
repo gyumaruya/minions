@@ -1,0 +1,5 @@
+description: load-memories - load_on_session_start case
+exit_code: 0
+stderr: '[load-memories] mem0 enabled via API key
+
+  '

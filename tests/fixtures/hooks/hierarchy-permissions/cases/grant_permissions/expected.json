@@ -1,0 +1,6 @@
+{
+  "hookSpecificOutput": {
+    "additionalContext": "Hierarchy: conductor \u2192 musician. Permissions auto-granted: 9 scopes.",
+    "hookEventName": "PostToolUse"
+  }
+}

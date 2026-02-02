@@ -7,6 +7,7 @@ Generates basic test cases (happy/edge/error) for common hooks.
 
 from __future__ import annotations
 
+import json
 import subprocess
 import sys
 from pathlib import Path
@@ -135,6 +136,278 @@ HOOK_CASES = {
             },
         },
     ],
+    "prevent-secrets-commit": [
+        {
+            "name": "block_aws_key",
+            "stdin": {
+                "tool_name": "Bash",
+                "tool_input": {"command": "git add secrets.py"},
+            },
+        },
+        {
+            "name": "allow_normal_commit",
+            "stdin": {
+                "tool_name": "Bash",
+                "tool_input": {"command": "git add main.py"},
+            },
+        },
+        {
+            "name": "allow_non_git",
+            "stdin": {
+                "tool_name": "Read",
+                "tool_input": {"file_path": "/some/file.txt"},
+            },
+        },
+    ],
+    "lint-on-save": [
+        {
+            "name": "lint_python_file",
+            "stdin": {
+                "tool_name": "Write",
+                "tool_input": {"file_path": "src/main.py", "content": "x=1"},
+            },
+        },
+        {
+            "name": "skip_non_python",
+            "stdin": {
+                "tool_name": "Write",
+                "tool_input": {"file_path": "README.md", "content": "# Test"},
+            },
+        },
+    ],
+    "agent-router": [
+        {
+            "name": "route_to_codex",
+            "stdin": {
+                "hook_event_name": "UserPromptSubmit",
+                "user_prompt": "どう設計すべき？エラーが出る",
+            },
+        },
+        {
+            "name": "route_to_gemini",
+            "stdin": {
+                "hook_event_name": "UserPromptSubmit",
+                "user_prompt": "調べて、このPDFを見て",
+            },
+        },
+        {
+            "name": "route_to_copilot",
+            "stdin": {
+                "hook_event_name": "UserPromptSubmit",
+                "user_prompt": "簡単な質問です",
+            },
+        },
+    ],
+    "log-cli-tools": [
+        {
+            "name": "log_codex_call",
+            "stdin": {
+                "tool_name": "Bash",
+                "tool_input": {"command": "codex exec --model gpt-5.2-codex 'test'"},
+            },
+        },
+        {
+            "name": "log_gemini_call",
+            "stdin": {
+                "tool_name": "Bash",
+                "tool_input": {"command": "gemini -p 'test'"},
+            },
+        },
+        {
+            "name": "skip_non_cli",
+            "stdin": {
+                "tool_name": "Read",
+                "tool_input": {"file_path": "/some/file.txt"},
+            },
+        },
+    ],
+    "check-codex-before-write": [
+        {
+            "name": "suggest_codex",
+            "stdin": {
+                "tool_name": "Write",
+                "tool_input": {
+                    "file_path": "src/main.py",
+                    "content": "def complex(): pass",
+                },
+            },
+        },
+        {
+            "name": "skip_simple_edit",
+            "stdin": {
+                "tool_name": "Edit",
+                "tool_input": {"file_path": "README.md"},
+            },
+        },
+    ],
+    "check-codex-after-plan": [
+        {
+            "name": "suggest_codex_review",
+            "stdin": {
+                "tool_name": "Task",
+                "tool_input": {"subagent_type": "Plan", "prompt": "Design system"},
+            },
+        },
+        {
+            "name": "skip_non_plan",
+            "stdin": {
+                "tool_name": "Task",
+                "tool_input": {"subagent_type": "Explore", "prompt": "Find files"},
+            },
+        },
+    ],
+    "auto-commit-on-verify": [
+        {
+            "name": "suggest_commit_on_test_pass",
+            "stdin": {
+                "tool_name": "Bash",
+                "tool_input": {"command": "pytest"},
+                "tool_output": "PASSED",
+            },
+        },
+        {
+            "name": "skip_on_test_fail",
+            "stdin": {
+                "tool_name": "Bash",
+                "tool_input": {"command": "pytest"},
+                "tool_output": "FAILED",
+            },
+        },
+    ],
+    "post-test-analysis": [
+        {
+            "name": "suggest_codex_on_failure",
+            "stdin": {
+                "tool_name": "Bash",
+                "tool_input": {"command": "pytest"},
+                "tool_output": "FAILED: AssertionError",
+            },
+        },
+        {
+            "name": "skip_on_pass",
+            "stdin": {
+                "tool_name": "Bash",
+                "tool_input": {"command": "pytest"},
+                "tool_output": "3 passed",
+            },
+        },
+    ],
+    "post-implementation-review": [
+        {
+            "name": "suggest_review",
+            "stdin": {
+                "tool_name": "Write",
+                "tool_input": {
+                    "file_path": "src/feature.py",
+                    "content": "class Feature: ...",
+                },
+            },
+        },
+    ],
+    "suggest-gemini-research": [
+        {
+            "name": "suggest_gemini",
+            "stdin": {
+                "hook_event_name": "UserPromptSubmit",
+                "user_prompt": "リサーチして、調べて",
+            },
+        },
+        {
+            "name": "skip_non_research",
+            "stdin": {
+                "hook_event_name": "UserPromptSubmit",
+                "user_prompt": "コードを書いて",
+            },
+        },
+    ],
+    "auto-learn": [
+        {
+            "name": "learn_preference",
+            "stdin": {
+                "hook_event_name": "UserPromptSubmit",
+                "user_prompt": "PRは日本語にして",
+            },
+        },
+        {
+            "name": "learn_workflow",
+            "stdin": {
+                "hook_event_name": "UserPromptSubmit",
+                "user_prompt": "いつもテストを先に書いて",
+            },
+        },
+    ],
+    "load-memories": [
+        {
+            "name": "load_on_session_start",
+            "stdin": {
+                "hook_event_name": "UserPromptSubmit",
+                "user_prompt": "Hello",
+            },
+        },
+    ],
+    "hierarchy-permissions": [
+        {
+            "name": "grant_permissions",
+            "stdin": {
+                "tool_name": "Task",
+                "tool_input": {"subagent_type": "general-purpose", "prompt": "Do work"},
+            },
+        },
+    ],
+    "enforce-hierarchy": [
+        {
+            "name": "block_upper_level_work",
+            "stdin": {
+                "tool_name": "Edit",
+                "tool_input": {"file_path": "src/main.py"},
+            },
+        },
+    ],
+    "ensure-noreply-email": [
+        {
+            "name": "fix_email_in_commit",
+            "stdin": {
+                "tool_name": "Bash",
+                "tool_input": {"command": "git commit -m 'test'"},
+            },
+        },
+    ],
+    "auto-create-pr": [
+        {
+            "name": "create_pr_on_session_start",
+            "stdin": {
+                "hook_event_name": "UserPromptSubmit",
+                "user_prompt": "Hello",
+            },
+        },
+    ],
+    "session-end": [
+        {
+            "name": "cleanup_on_end",
+            "stdin": {
+                "hook_event_name": "Stop",
+            },
+        },
+    ],
+    "pre-tool-recall": [
+        {
+            "name": "recall_memories",
+            "stdin": {
+                "tool_name": "Edit",
+                "tool_input": {"file_path": "src/main.py"},
+            },
+        },
+    ],
+    "post-tool-record": [
+        {
+            "name": "record_tool_use",
+            "stdin": {
+                "tool_name": "Bash",
+                "tool_input": {"command": "pytest"},
+                "tool_output": "PASSED",
+            },
+        },
+    ],
 }
 
 
@@ -145,7 +418,7 @@ def record_case(hook_name: str, case_name: str, stdin_data: dict) -> bool:
     try:
         result = subprocess.run(
             [sys.executable, str(recorder_path), hook_name, case_name],
-            input=str(stdin_data).replace("'", '"'),  # Convert to JSON
+            input=json.dumps(stdin_data),
             capture_output=True,
             text=True,
             timeout=15,

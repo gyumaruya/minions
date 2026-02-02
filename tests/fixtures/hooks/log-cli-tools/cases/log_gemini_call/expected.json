@@ -1,0 +1,6 @@
+{
+  "hookSpecificOutput": {
+    "additionalContext": "[LOG] Gemini call logged to .claude/logs/cli-tools.jsonl",
+    "hookEventName": "PostToolUse"
+  }
+}

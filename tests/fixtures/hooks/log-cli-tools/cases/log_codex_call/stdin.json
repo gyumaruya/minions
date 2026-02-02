@@ -1,0 +1,6 @@
+{
+  "tool_input": {
+    "command": "codex exec --model gpt-5.2-codex 'test'"
+  },
+  "tool_name": "Bash"
+}

@@ -1,0 +1,6 @@
+{
+  "tool_input": {
+    "command": "gh pr create --draft --title \"test\""
+  },
+  "tool_name": "Bash"
+}

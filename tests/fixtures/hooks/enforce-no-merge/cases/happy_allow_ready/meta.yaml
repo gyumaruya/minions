@@ -1,0 +1,3 @@
+description: enforce-no-merge - happy_allow_ready case
+exit_code: 0
+stderr: null

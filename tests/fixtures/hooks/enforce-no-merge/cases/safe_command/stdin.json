@@ -1,0 +1,6 @@
+{
+  "tool_input": {
+    "command": "git status"
+  },
+  "tool_name": "Bash"
+}

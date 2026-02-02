@@ -1,0 +1,7 @@
+{
+  "tool_input": {
+    "content": "test",
+    "file_path": "/some/file.txt"
+  },
+  "tool_name": "Write"
+}

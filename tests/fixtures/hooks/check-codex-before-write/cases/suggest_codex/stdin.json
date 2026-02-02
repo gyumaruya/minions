@@ -1,0 +1,7 @@
+{
+  "tool_input": {
+    "content": "def complex(): pass",
+    "file_path": "src/main.py"
+  },
+  "tool_name": "Write"
+}

@@ -1,0 +1,3 @@
+description: lint-on-save - skip_non_python case
+exit_code: 0
+stderr: null

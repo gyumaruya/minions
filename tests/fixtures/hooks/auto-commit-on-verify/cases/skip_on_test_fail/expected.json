@@ -1,0 +1,6 @@
+{
+  "hookSpecificOutput": {
+    "additionalContext": "[Auto-Push] PR is open. Verification passed with uncommitted changes. Push automatically: `git add -A && git commit -m \"...\" && git push`",
+    "hookEventName": "PostToolUse"
+  }
+}

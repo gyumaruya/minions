@@ -1,0 +1,6 @@
+{
+  "tool_input": {
+    "command": "gh pr create --draft --title \"Add feature\""
+  },
+  "tool_name": "Bash"
+}
