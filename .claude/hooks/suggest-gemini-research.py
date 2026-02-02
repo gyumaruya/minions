@@ -8,6 +8,11 @@ for comprehensive research with its larger context window.
 
 import json
 import sys
+from pathlib import Path
+
+# Add scripts to path
+sys.path.insert(0, str(Path(__file__).parent.parent / "scripts"))
+from config_utils import is_agent_enabled
 
 # Keywords that suggest deep research would benefit from Gemini
 RESEARCH_INDICATORS = [
@@ -62,6 +67,10 @@ def should_suggest_gemini(query: str, url: str = "") -> tuple[bool, str]:
 
 
 def main():
+    # Skip if Gemini agent is disabled
+    if not is_agent_enabled("gemini"):
+        sys.exit(0)
+
     try:
         data = json.load(sys.stdin)
         tool_name = data.get("tool_name", "")
@@ -88,7 +97,7 @@ def main():
                         "**Recommended**: Use Task tool with subagent_type='general-purpose' "
                         "to consult Gemini and save results to .claude/docs/research/. "
                         "(Direct call OK for quick questions: `gemini -p '...' 2>/dev/null`)"
-                    )
+                    ),
                 }
             }
             print(json.dumps(output))
