@@ -33,6 +33,21 @@ RECALL_TOOLS = {
 # Maximum memories to inject
 MAX_RECALL = 5
 
+# Tool-specific score thresholds
+TOOL_SCORE_THRESHOLDS = {
+    "Bash": 0.6,  # Command execution — prioritize failure patterns
+    "Edit": 0.7,  # File editing — high relevance only
+    "Write": 0.7,  # File creation — high relevance only
+    "Task": 0.5,  # Subagent — broader reference
+    "WebFetch": 0.8,  # Web fetch — very high relevance only
+    "WebSearch": 0.8,  # Web search — very high relevance only
+}
+
+
+def get_score_threshold(tool_name: str) -> float:
+    """Get score threshold for tool type."""
+    return TOOL_SCORE_THRESHOLDS.get(tool_name, 0.7)  # Default 0.7
+
 
 def get_openai_api_key_from_keychain() -> str | None:
     """Get OpenAI API key from macOS Keychain."""
@@ -136,14 +151,15 @@ def recall_memories(tool_name: str, tool_input: dict) -> list[dict]:
             use_semantic=enable_mem0,
         )
 
-        # Score and filter
+        # Score and filter with tool-specific threshold
+        threshold = get_score_threshold(tool_name)
         scored_memories = []
         for event in memories:
             stored_importance = event.metadata.get("importance_score")
             recall_score = calculate_recall_score(event, scoring_ctx, stored_importance)
 
-            # Only include high-scoring memories
-            if recall_score >= 0.5:
+            # Only include memories above tool-specific threshold
+            if recall_score >= threshold:
                 scored_memories.append(
                     {
                         "event": event,

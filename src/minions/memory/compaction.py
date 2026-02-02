@@ -16,7 +16,7 @@ import json
 from collections import defaultdict
 from datetime import datetime
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from minions.memory.schema import MemoryEvent
@@ -108,7 +108,7 @@ class CompactionWorker:
 
     def summarize_group(
         self, events: list[MemoryEvent], group_key: str
-    ) -> dict[str, any]:
+    ) -> dict[str, Any]:
         """
         Summarize a group of events (LLM-free, simple aggregation).
 
@@ -156,7 +156,7 @@ class CompactionWorker:
             "sample_content": events[0].content[:200] if events else "",
         }
 
-    def compact_session(self, session_id: str) -> dict[str, any]:
+    def compact_session(self, session_id: str) -> dict[str, Any]:
         """
         Compact a session's events into a summary.
 
@@ -227,7 +227,7 @@ class CompactionWorker:
             },
         }
 
-    def compact_by_tier(self) -> dict[str, any]:
+    def compact_by_tier(self) -> dict[str, Any]:
         """
         Compact events by tier (Hot/Warm/Cold).
 
@@ -313,13 +313,13 @@ class CompactionWorker:
         }
 
 
-def compact_session(session_id: str, memory_dir: Path | None = None) -> dict[str, any]:
+def compact_session(session_id: str, memory_dir: Path | None = None) -> dict[str, Any]:
     """Convenience function to compact a single session."""
     worker = CompactionWorker(memory_dir)
     return worker.compact_session(session_id)
 
 
-def compact_all_tiers(memory_dir: Path | None = None) -> dict[str, any]:
+def compact_all_tiers(memory_dir: Path | None = None) -> dict[str, Any]:
     """Convenience function to compact all tiers."""
     worker = CompactionWorker(memory_dir)
     return worker.compact_by_tier()

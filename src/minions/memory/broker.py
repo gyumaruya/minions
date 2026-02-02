@@ -59,6 +59,9 @@ class MemoryBroker:
         # Current session
         self._session_id: str | None = None
 
+        # ID cache for N+1 query mitigation
+        self._id_cache: dict[str, MemoryEvent] = {}
+
         # mem0 integration
         self._mem0 = None
         self._mem0_enabled = enable_mem0
@@ -478,15 +481,28 @@ class MemoryBroker:
         return events
 
     def _get_by_id(self, event_id: str) -> MemoryEvent | None:
-        """Get event by ID from JSONL files."""
+        """
+        Get event by ID from JSONL files.
+
+        Uses simple cache to mitigate N+1 queries during search.
+        TODO: Add proper indexing (e.g., SQLite) for better performance.
+        """
+        # Check cache first
+        if event_id in self._id_cache:
+            return self._id_cache[event_id]
+
         # Search main file
         for event in self._load_jsonl(self.events_file):
+            # Populate cache while searching
+            self._id_cache[event.id] = event
             if event.id == event_id:
                 return event
 
         # Search session files
         for session_file in self.sessions_dir.glob("*.jsonl"):
             for event in self._load_jsonl(session_file):
+                # Populate cache while searching
+                self._id_cache[event.id] = event
                 if event.id == event_id:
                     return event
 

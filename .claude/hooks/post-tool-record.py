@@ -15,7 +15,6 @@ import json
 import os
 import subprocess
 import sys
-import time
 from pathlib import Path
 
 # Add src to path
@@ -211,8 +210,6 @@ def record_tool_result(
 
 def main() -> None:
     """Main hook entry point."""
-    start_time = time.time()
-
     try:
         hook_input = json.load(sys.stdin)
     except (json.JSONDecodeError, Exception):
@@ -230,8 +227,8 @@ def main() -> None:
     if tool_name not in RECORDABLE_TOOLS:
         sys.exit(0)
 
-    # Calculate execution time (hook processing time as proxy)
-    execution_time_ms = int((time.time() - start_time) * 1000)
+    # Note: Tool execution time should come from external source, not hook processing time
+    execution_time_ms = None
 
     # Record the result
     success = record_tool_result(tool_name, tool_input, tool_output, execution_time_ms)
