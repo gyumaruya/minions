@@ -174,7 +174,8 @@ def main() -> None:
             message = (
                 f"⛔ 階層違反: {role} は直接作業を継続できません。\n"
                 f"連続 {state['non_delegate_count']} 回の作業ツール使用。\n"
-                "Task ツールで下位エージェント（musician）へ委譲してください。"
+                "Task ツールで下位エージェント（musician）へ委譲してください。\n"
+                f"リセット: python .claude/scripts/reset-delegation.py"
             )
             json.dump(
                 {
@@ -190,25 +191,28 @@ def main() -> None:
             save_state(state_file, state)
             sys.exit(0)
 
-        # Warn if approaching threshold
-        if (
-            state["non_delegate_count"] >= warn_at
-            and state["last_warning_at"] < state["non_delegate_count"]
-        ):
-            state["last_warning_at"] = state["non_delegate_count"]
-            json.dump(
-                {
-                    "hookSpecificOutput": {
-                        "hookEventName": "PreToolUse",
-                        "additionalContext": (
-                            f"⚠ 委譲なし作業が {state['non_delegate_count']} 回です（{block_at}回でブロック）。"
-                            "Task ツールで委譲を検討してください。"
-                        ),
-                    }
-                },
-                sys.stdout,
-                ensure_ascii=False,
-            )
+        # Always remind about delegation on every work tool use
+        reminder = f"💡 委譲推奨: Task ツールで musician へ委譲できます。（{state['non_delegate_count']}/{block_at}）"
+
+        # Add stronger warning if approaching threshold
+        if state["non_delegate_count"] >= warn_at:
+            if state["last_warning_at"] < state["non_delegate_count"]:
+                state["last_warning_at"] = state["non_delegate_count"]
+                reminder = (
+                    f"⚠ 委譲なし作業が {state['non_delegate_count']} 回です（{block_at}回でブロック）。\n"
+                    "Task ツールで委譲を検討してください。"
+                )
+
+        json.dump(
+            {
+                "hookSpecificOutput": {
+                    "hookEventName": "PreToolUse",
+                    "additionalContext": reminder,
+                }
+            },
+            sys.stdout,
+            ensure_ascii=False,
+        )
 
     save_state(state_file, state)
     sys.exit(0)
