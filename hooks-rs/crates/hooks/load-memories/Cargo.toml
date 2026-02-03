@@ -1,0 +1,16 @@
+[package]
+name = "load-memories"
+version.workspace = true
+edition = "2024"
+
+[[bin]]
+name = "load-memories"
+path = "src/main.rs"
+
+[dependencies]
+hook-common.workspace = true
+hook-memory.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+anyhow.workspace = true
+camino.workspace = true

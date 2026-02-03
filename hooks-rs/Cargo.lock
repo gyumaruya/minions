@@ -3,6 +3,16 @@
 version = 4
 
 [[package]]
+name = "agent-router"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "hook-common",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "aho-corasick"
 version = "1.1.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -36,6 +46,39 @@ dependencies = [
  "predicates-core",
  "predicates-tree",
  "wait-timeout",
+]
+
+[[package]]
+name = "auto-commit-on-verify"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "hook-common",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "auto-create-pr"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "hook-common",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "auto-learn"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "camino",
+ "hook-common",
+ "hook-memory",
+ "regex",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]
@@ -74,6 +117,26 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9330f8b2ff13f34540b44e946ef35111825727b38d33286ef986142615121801"
 
 [[package]]
+name = "check-codex-after-plan"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "hook-common",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "check-codex-before-write"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "hook-common",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "console"
 version = "0.15.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -110,7 +173,38 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "34aa73646ffb006b8f5147f3dc182bd4bcb190227ce861fc4a4844bf8e3cb2c0"
 
 [[package]]
+name = "enforce-delegation"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "hook-common",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "enforce-draft-pr"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "hook-common",
+ "regex",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "enforce-hierarchy"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "hook-common",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "enforce-japanese"
 version = "0.1.0"
 dependencies = [
  "anyhow",
@@ -130,6 +224,16 @@ dependencies = [
  "insta",
  "predicates",
  "regex",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "ensure-noreply-email"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "hook-common",
  "serde",
  "serde_json",
 ]
@@ -179,6 +283,16 @@ dependencies = [
  "libc",
  "r-efi",
  "wasip2",
+]
+
+[[package]]
+name = "hierarchy-permissions"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "hook-common",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]
@@ -236,10 +350,43 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bcc35a38544a891a5f7c865aca548a982ccb3b8650a5b06d0fd33a10283c56fc"
 
 [[package]]
+name = "lint-on-save"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "hook-common",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "linux-raw-sys"
 version = "0.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "df1d3c3b53da64cf5760482273a98e575c651a67eec7f77df96b5b642de8f039"
+
+[[package]]
+name = "load-memories"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "camino",
+ "hook-common",
+ "hook-memory",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "log-cli-tools"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "hook-common",
+ "regex",
+ "serde",
+ "serde_json",
+]
 
 [[package]]
 name = "memchr"
@@ -276,6 +423,51 @@ checksum = "7d8fae84b431384b68627d0f9b3b1245fcf9f46f6c0e3dc902e9dce64edd1967"
 dependencies = [
  "libc",
  "windows-sys 0.61.2",
+]
+
+[[package]]
+name = "post-implementation-review"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "hook-common",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "post-test-analysis"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "hook-common",
+ "regex",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "post-tool-record"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "camino",
+ "hook-common",
+ "hook-memory",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "pre-tool-recall"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "camino",
+ "hook-common",
+ "hook-memory",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]
@@ -475,6 +667,16 @@ name = "similar"
 version = "2.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bbbb5d9659141646ae647b42fe094daf6c6192d1620870b449d9557f748b2daa"
+
+[[package]]
+name = "suggest-gemini-research"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "hook-common",
+ "serde",
+ "serde_json",
+]
 
 [[package]]
 name = "syn"

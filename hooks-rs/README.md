@@ -1,218 +1,190 @@
-# Rust Hooks
+# hooks-rs: Rust Hooks for Claude Code
 
-Claude Code hooks をRustで実装したプロジェクト。
+Cross-platform Rust implementation of Claude Code hooks. Replaces Python hooks for better reliability across Mac, Linux, and Windows.
 
-## 目的
+## Benefits over Python hooks
 
-- **クロスプラットフォーム**: Mac, Linux, Windows で動作
-- **安定性**: Python環境依存を排除、構文エラーリスクを低減
-- **パフォーマンス**: 単一バイナリ、高速起動
+- **No Python dependency** - Single binary, no virtualenv needed
+- **No syntax errors** - Compiled language catches errors at build time
+- **Cross-platform** - Same binary works on Mac, Linux, Windows
+- **Fast startup** - No interpreter overhead
 
-## 構成
+## Structure
 
 ```
 hooks-rs/
-├── Cargo.toml              # ワークスペース設定
 ├── crates/
-│   ├── hook-common/        # 共通ライブラリ
-│   │   ├── src/
-│   │   │   ├── lib.rs      # エントリポイント
-│   │   │   ├── input.rs    # JSON stdin パース
-│   │   │   ├── output.rs   # JSON stdout 出力
-│   │   │   ├── state.rs    # /tmp 状態ファイル管理
-│   │   │   └── subprocess.rs # シェルコマンド実行
-│   │   └── Cargo.toml
-│   ├── hook-memory/        # Memory System
-│   │   ├── src/
-│   │   │   ├── lib.rs      # エントリポイント
-│   │   │   ├── schema.rs   # MemoryEvent, MemoryType等
-│   │   │   └── storage.rs  # JSONL読み書き
-│   │   └── Cargo.toml
-│   └── hooks/              # 各hook実装
-│       ├── enforce-no-merge/
-│       ├── enforce-draft-pr/
-│       ├── prevent-secrets-commit/
-│       └── ensure-pr-open/
-└── tests/
-    └── fixtures/           # テストデータ (../tests/fixtures/hooks/)
+│   ├── hook-common/       # Shared library for all hooks
+│   │   ├── input.rs       # JSON stdin parsing (HookInput)
+│   │   ├── output.rs      # JSON stdout output (HookOutput)
+│   │   ├── state.rs       # State file management
+│   │   └── subprocess.rs  # Command execution helpers
+│   │
+│   ├── hook-memory/       # Memory system for self-improvement
+│   │   ├── schema.rs      # MemoryEvent, MemoryType, etc.
+│   │   └── storage.rs     # JSONL storage
+│   │
+│   └── hooks/             # Individual hook binaries
+│       ├── enforce-no-merge/       # Block git merge commands
+│       ├── enforce-draft-pr/       # Ensure PRs are draft
+│       ├── prevent-secrets-commit/ # Block secrets in commits
+│       ├── ensure-pr-open/         # Require open PR for edits
+│       ├── enforce-japanese/       # Enforce Japanese in PRs
+│       ├── lint-on-save/           # Run ruff/ty on Python files
+│       ├── log-cli-tools/          # Log Codex/Gemini usage
+│       ├── ensure-noreply-email/   # Set noreply git email
+│       ├── auto-create-pr/         # Auto-create PR at session start
+│       ├── enforce-delegation/     # Enforce Conductor delegation
+│       ├── auto-commit-on-verify/  # Auto-push after tests pass
+│       ├── agent-router/           # Route to Codex/Gemini/Copilot
+│       ├── enforce-hierarchy/      # Enforce agent hierarchy
+│       ├── hierarchy-permissions/  # Permission inheritance
+│       ├── post-test-analysis/     # Suggest Codex for failures
+│       ├── check-codex-before-write/ # Suggest Codex for design
+│       ├── check-codex-after-plan/ # Suggest Codex plan review
+│       ├── suggest-gemini-research/ # Suggest Gemini for research
+│       ├── post-implementation-review/ # Suggest review after edits
+│       ├── load-memories/          # Load memories at session start
+│       ├── auto-learn/             # Learn from user corrections
+│       ├── pre-tool-recall/        # Recall memories before tools
+│       └── post-tool-record/       # Record tool executions
 ```
 
-## 実装済みHooks
+## Hook Categories
 
-### Tier 1 (単純 × 重要)
+### Tier 1: Core Blocking Hooks
+- `enforce-no-merge` - Blocks `git merge` and `gh pr merge`
+- `enforce-draft-pr` - Ensures `gh pr create` uses `--draft`
+- `prevent-secrets-commit` - Blocks commits containing secrets
+- `ensure-pr-open` - Blocks Edit/Write without open PR
 
-| Hook | 説明 | ステータス |
-|------|------|-----------|
-| enforce-no-merge | マージ操作をブロック | ✅ 完了 |
-| enforce-draft-pr | draft PR を強制 | ✅ 完了 |
-| prevent-secrets-commit | シークレット検出 | ✅ 完了 |
-| ensure-pr-open | PR必須 | ✅ 完了 |
+### Tier 2: Workflow Hooks
+- `enforce-japanese` - Enforces Japanese in PR/commit messages
+- `lint-on-save` - Runs ruff format/check and ty on Python files
+- `log-cli-tools` - Logs Codex/Gemini CLI usage to JSONL
+- `ensure-noreply-email` - Sets git email to noreply before commits
+- `auto-create-pr` - Creates feature branch and draft PR at session start
+- `enforce-delegation` - Reminds Conductor to delegate to Musicians
+- `auto-commit-on-verify` - Suggests push after successful tests
+- `agent-router` - Routes tasks to appropriate agent (Codex/Gemini/Copilot)
 
-### Tier 2 (subprocess多用) - 未実装
+### Tier 3: Hierarchy Hooks
+- `enforce-hierarchy` - Blocks direct edits by Conductor/Section Leader
+- `hierarchy-permissions` - Notifies about permission inheritance
 
-| Hook | 説明 |
-|------|------|
-| lint-on-save | ruff/ty 実行 |
-| auto-create-pr | セッション開始時PR作成 |
-| auto-commit-on-verify | 検証成功時自動コミット |
-| enforce-japanese | 日本語強制 |
+### Tier 4: Suggestion Hooks
+- `post-test-analysis` - Suggests Codex after test failures
+- `check-codex-before-write` - Suggests Codex for design files
+- `check-codex-after-plan` - Suggests Codex plan review
+- `suggest-gemini-research` - Suggests Gemini for research tasks
+- `post-implementation-review` - Suggests review after many edits
 
-### Tier 3 (状態管理) - 未実装
+### Tier 5: Memory Hooks
+- `load-memories` - Loads relevant memories at session start
+- `auto-learn` - Learns from user corrections (〜にして, 毎回〜, etc.)
+- `pre-tool-recall` - Recalls relevant memories before tool execution
+- `post-tool-record` - Records tool executions to memory
 
-| Hook | 説明 |
-|------|------|
-| enforce-delegation | 委譲強制 |
-| agent-router | エージェントルーティング |
-| log-cli-tools | CLI呼び出しログ |
-
-### Tier 4 (Memory依存) - 未実装
-
-| Hook | 説明 |
-|------|------|
-| load-memories | 記憶読み込み |
-| pre-tool-recall | ツール実行前リコール |
-| post-tool-record | ツール実行後記録 |
-| auto-learn | 自動学習 |
-
-## ビルド
+## Building
 
 ```bash
 cd hooks-rs
 cargo build --release
 ```
 
-バイナリは `target/release/` に生成される。
+Binaries are output to `target/release/`.
 
-## テスト
+## Testing
 
 ```bash
-# ユニットテスト
-cargo test
-
-# E2Eテスト
-cd /Users/takuya/minions
-uv run python tests/test_rust_hooks.py
+cargo test --release
 ```
 
-## 使い方
+## Usage
 
-Claude Code の `.claude/settings.json` でhookパスを設定:
+Configure in `.claude/settings.json`:
 
 ```json
 {
   "hooks": {
     "PreToolUse": [
       {
-        "command": "/path/to/hooks-rs/target/release/enforce-no-merge"
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/path/to/hooks-rs/target/release/enforce-no-merge",
+            "timeout": 5
+          }
+        ]
       }
     ]
   }
 }
 ```
 
-## hook-common API
+## Hook Protocol
 
-### HookInput
+Hooks receive JSON on stdin and output JSON to stdout.
+
+### Input (stdin)
+```json
+{
+  "tool_name": "Bash",
+  "tool_input": {
+    "command": "git status"
+  },
+  "tool_output": "...",
+  "user_prompt": "..."
+}
+```
+
+### Output (stdout)
+```json
+{
+  "hookSpecificOutput": {
+    "hookEventName": "PreToolUse",
+    "permissionDecision": "allow|deny|ask",
+    "additionalContext": "Message to show",
+    "blockingError": "Error message (blocks operation)"
+  }
+}
+```
+
+## Development
+
+### Adding a new hook
+
+1. Create directory: `mkdir -p crates/hooks/my-hook/src`
+2. Add `Cargo.toml` with `hook-common` dependency
+3. Implement `main.rs` using `HookInput::from_stdin()` and `HookOutput`
+4. Add to workspace `Cargo.toml` members
+5. Build and test
+
+### Common patterns
 
 ```rust
 use hook_common::prelude::*;
 
-let input = HookInput::from_stdin()?;
-if input.is_bash() {
-    let command = input.get_command();
+fn main() -> anyhow::Result<()> {
+    let input = HookInput::from_stdin()?;
+
+    // Check tool type
+    if !input.is_bash() {
+        return Ok(());
+    }
+
+    // Get command
+    let command = input.get_command().unwrap_or("");
+
+    // Allow with context
+    let output = HookOutput::allow().with_context("Info message");
+    output.write_stdout()?;
+
+    // Or deny
+    let output = HookOutput::deny().with_context("Reason for denial");
+    output.write_stdout()?;
+
+    Ok(())
 }
 ```
-
-### HookOutput
-
-```rust
-// 許可
-HookOutput::allow().write_stdout()?;
-
-// 拒否
-HookOutput::deny()
-    .with_context("Blocked for security")
-    .write_stdout()?;
-
-// 確認要求
-HookOutput::ask()
-    .with_context("Are you sure?")
-    .write_stdout()?;
-
-// サイレントパス（何も出力しない）
-// return Ok(());
-```
-
-### StateManager
-
-```rust
-use hook_common::state::StateManager;
-
-let state = StateManager::new("my-hook");
-state.save("key", &data)?;
-let data: Option<MyState> = state.load("key")?;
-```
-
-### Subprocess
-
-```rust
-use hook_common::subprocess::{run_command, git, gh};
-
-let result = run_command("ls -la")?;
-let result = git("status --porcelain")?;
-let result = gh("pr list --json number")?;
-```
-
-## hook-memory API
-
-### MemoryEvent
-
-```rust
-use hook_memory::{MemoryEvent, MemoryType, MemoryScope, AgentType};
-
-let event = MemoryEvent::new(
-    "PRは日本語で書く",
-    MemoryType::Preference,
-    MemoryScope::User,
-    AgentType::System,
-)
-.with_context("ユーザーの指示")
-.with_confidence(0.9)
-.with_tag("pr");
-```
-
-### MemoryStorage
-
-```rust
-use hook_memory::MemoryStorage;
-
-let storage = MemoryStorage::new("~/.claude/memory/events.jsonl");
-
-// 追記
-storage.append(&event)?;
-
-// 全件読み込み
-let all = storage.load_all()?;
-
-// タイプでフィルタ
-let prefs = storage.load_by_type(MemoryType::Preference)?;
-
-// 検索
-let results = storage.search("日本語")?;
-
-// 最新N件
-let recent = storage.recent(10)?;
-```
-
-## 移行計画
-
-1. ✅ テスト基盤構築（Python記録用ランナー）
-2. ✅ hook-common クレート
-3. ✅ Tier 1 hooks (4個)
-4. ✅ hook-memory クレート
-5. 🔄 Tier 2-4 hooks
-6. ⏳ CI/CD 設定
-
-## ライセンス
-
-MIT
