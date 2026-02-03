@@ -4,6 +4,274 @@ minions プロジェクトを「ベース」として他のプロジェクトで
 
 ---
 
+## 実装状況（2026-02-04）
+
+### 完了した作業
+
+#### 1. グローバル記憶の実装
+
+**記憶パスの変更:**
+```
+変更前: <project>/.claude/memory/events.jsonl
+変更後: ~/.config/ai/memory/events.jsonl
+```
+
+**パス解決の優先順位:**
+1. `AI_MEMORY_PATH` 環境変数（設定時）
+2. `~/.config/ai/memory/events.jsonl`（デフォルト）
+
+**影響を受けたフック:**
+- `load-memories` - 記憶読み込み
+- `auto-learn` - 自動学習
+- `pre-tool-recall` - ツール実行前の記憶参照
+- `post-tool-record` - ツール実行結果の記録
+
+すべて `MemoryStorage::default_path()` を使用するよう修正。
+
+#### 2. グローバルフックの実装
+
+**構成:**
+```
+~/.config/ai/
+├── hooks/
+│   └── bin/ → ~/minions/hooks-rs/target/release/ (symlink)
+└── memory/
+    └── events.jsonl (217 events, minions から移行)
+
+~/.claude/settings.json
+├── 全 23 フック定義
+├── permissions（セキュリティポリシー）
+└── enabledPlugins
+
+minions/.claude/settings.json
+└── env のみ（最小限）
+```
+
+**グローバル化されたフック（23個）:**
+
+| カテゴリ | フック | タイミング |
+|---------|--------|-----------|
+| **記憶** | load-memories, auto-learn, pre-tool-recall, post-tool-record | UserPromptSubmit, PreToolUse, PostToolUse |
+| **セキュリティ** | prevent-secrets-commit, ensure-noreply-email, enforce-japanese | PreToolUse:Bash |
+| **PR ワークフロー** | auto-create-pr, enforce-draft-pr, enforce-no-merge, ensure-pr-open | UserPromptSubmit, PreToolUse |
+| **階層・委譲** | enforce-hierarchy, enforce-delegation, hierarchy-permissions | PreToolUse, PostToolUse |
+| **提案** | check-codex-before-write, check-codex-after-plan, suggest-gemini-research, post-implementation-review | PreToolUse, PostToolUse |
+| **開発フロー** | lint-on-save, post-test-analysis, auto-commit-on-verify | PostToolUse |
+| **ルーティング** | agent-router, log-cli-tools | UserPromptSubmit, PostToolUse:Bash |
+
+#### 3. セットアップスクリプト
+
+**場所:** `~/minions/scripts/setup-global-config.sh`
+
+**実行内容:**
+1. `~/.config/ai/` ディレクトリ構造作成
+2. フックバイナリへの symlink 作成
+3. minions の記憶をグローバルに移行
+4. `~/.claude/settings.json` にグローバルフック設定
+5. `minions/.claude/settings.json` を最小化
+
+**使い方:**
+```bash
+cd ~/minions/hooks-rs && cargo build --release
+~/minions/scripts/setup-global-config.sh
+```
+
+---
+
+## 今後の方針
+
+### Phase 1: グローバル記憶の運用（現在）
+
+**状態:** ✅ 完了
+
+- すべての記憶が `~/.config/ai/memory/events.jsonl` に統合
+- グローバル/ローカル判断ロジックは未実装（すべてグローバル）
+- 全プロジェクトで共通の記憶を使用
+
+**利点:**
+- 一度学習した好みが全プロジェクトに適用
+- セットアップ済みなら新プロジェクトでも即座に動作
+
+**制限:**
+- プロジェクト固有の記憶が混在（現状は許容）
+
+### Phase 2: ローカル記憶の追加（次のステップ）
+
+**目的:** プロジェクト固有の記憶とグローバル記憶を分離
+
+**実装予定:**
+```
+~/.config/ai/memory/events.jsonl           # グローバル（好み、ワークフロー）
+<project>/.claude/memory/events.jsonl     # ローカル（プロジェクト固有）
+```
+
+**振り分けロジック（検討中）:**
+
+| 記憶タイプ | 保存先 | 例 |
+|-----------|--------|-----|
+| 好み (`preference`) | グローバル | 「PRは日本語で書く」 |
+| ワークフロー (`workflow`) | グローバル | 「コミット後は自動でPR作成」 |
+| プロジェクト固有エラー | ローカル | 「このAPIのタイムアウトは30秒」 |
+| プロジェクト固有決定 | ローカル | 「認証にJWTを使用」 |
+
+**実装方法（案）:**
+1. 環境変数で判断: `AI_MEMORY_SCOPE=global|local`
+2. LLM判断: フック内でコンテンツを分析
+3. ユーザー確認: 記憶時に確認プロンプト
+
+### Phase 3: Tool Adapter層（長期）
+
+**Codex の未来志向レビューより:**
+
+```
+~/.config/ai/
+├── tools/
+│   ├── claude/
+│   ├── copilot/
+│   ├── codex/
+│   └── gemini/
+└── compat/              # バージョン互換マッピング
+```
+
+**目的:**
+- ツール進化時の破綻を防ぐ
+- 新旧ツールバージョン間の差分を吸収
+
+**実装は必要になってから:**
+- 現状は Phase 1 で十分
+- ツールのAPI変更が頻繁になったら検討
+
+---
+
+## 新プロジェクトでのセットアップ
+
+### 前提
+
+- minions プロジェクトで `setup-global-config.sh` 実行済み
+- グローバルフック・記憶が設定済み
+
+### 新プロジェクトで必要な作業
+
+**なし。** グローバル設定が自動適用される。
+
+### オプション: プロジェクト固有設定
+
+プロジェクト固有の設定が必要な場合のみ:
+
+```bash
+mkdir -p <project>/.claude
+cat > <project>/.claude/settings.json << 'EOF'
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "env": {
+    "PROJECT_SPECIFIC_VAR": "value"
+  }
+}
+EOF
+```
+
+**Note:** フックはグローバルから継承されるため、プロジェクトごとの設定は不要。
+
+---
+
+## トラブルシューティング
+
+### 記憶が読み込まれない
+
+**確認:**
+```bash
+# グローバル記憶の存在確認
+ls -la ~/.config/ai/memory/events.jsonl
+
+# 記憶の内容確認
+head -5 ~/.config/ai/memory/events.jsonl
+```
+
+**解決:**
+```bash
+# セットアップスクリプトを再実行
+~/minions/scripts/setup-global-config.sh
+```
+
+### フックが動作しない
+
+**確認:**
+```bash
+# フックバイナリの存在確認
+ls ~/.config/ai/hooks/bin/
+
+# symlink の確認
+readlink ~/.config/ai/hooks/bin
+# -> /Users/takuya/minions/hooks-rs/target/release
+
+# グローバル設定の確認
+grep "hooks" ~/.claude/settings.json
+```
+
+**解決:**
+```bash
+# フックをリビルド
+cd ~/minions/hooks-rs && cargo build --release
+
+# symlink を再作成
+rm ~/.config/ai/hooks/bin
+ln -sf ~/minions/hooks-rs/target/release ~/.config/ai/hooks/bin
+```
+
+### 環境変数でパスをオーバーライド
+
+特定のプロジェクトで異なる記憶を使いたい場合:
+
+```bash
+# プロジェクト固有の記憶を使用
+export AI_MEMORY_PATH="/path/to/project/.claude/memory/events.jsonl"
+```
+
+`.claude/settings.json` の `env` セクションに追加も可能:
+```json
+{
+  "env": {
+    "AI_MEMORY_PATH": "/path/to/custom/memory.jsonl"
+  }
+}
+```
+
+---
+
+## 設計判断の記録
+
+### なぜ `~/.config/ai/` か
+
+**理由:**
+- XDG Base Directory Specification 準拠
+- Claude Code 固有（`~/.claude/`）ではなく、ツール非依存
+- 将来的に他のAIツールとも共有可能
+
+### なぜ manifest.json を削除したか
+
+**3つの視点からの合意:**
+- 実用主義者: 「git で十分」
+- 未来志向: 「配布時に必要になってから」
+- ミニマリスト: 「不要」
+
+現状は git でバージョン管理。必要になったら追加。
+
+### なぜすべてのフックをグローバルにしたか
+
+**ユーザー要望:** 「minionsのフックは基本グローバルオンリーになるイメージ」
+
+**利点:**
+- 新プロジェクトで即座に使える
+- 一貫したガードレールが適用される
+- セットアップが簡単
+
+**プロジェクト固有の動作:**
+- `auto-create-pr` などは `CLAUDE_PROJECT_DIR` を参照
+- プロジェクトごとに異なるリポジトリでPRを作成
+- グローバルでも問題なく動作
+
+---
+
 ## 現状の仕組み（Claude Code の仕様）
 
 ### 設定ファイルの階層

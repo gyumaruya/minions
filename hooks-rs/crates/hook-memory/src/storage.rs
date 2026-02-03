@@ -20,12 +20,21 @@ impl MemoryStorage {
     }
 
     /// Get default storage path.
+    ///
+    /// Priority:
+    /// 1. AI_MEMORY_PATH environment variable (if set)
+    /// 2. ~/.config/ai/memory/events.jsonl (global default)
     pub fn default_path() -> Utf8PathBuf {
-        // Default: ~/.claude/memory/events.jsonl
+        // Allow override via environment variable
+        if let Ok(custom_path) = std::env::var("AI_MEMORY_PATH") {
+            return Utf8PathBuf::from(custom_path);
+        }
+
+        // Default: ~/.config/ai/memory/events.jsonl (global)
         if let Some(home) = dirs_home() {
-            Utf8PathBuf::from(format!("{}/.claude/memory/events.jsonl", home))
+            Utf8PathBuf::from(format!("{}/.config/ai/memory/events.jsonl", home))
         } else {
-            Utf8PathBuf::from(".claude/memory/events.jsonl")
+            Utf8PathBuf::from(".config/ai/memory/events.jsonl")
         }
     }
 

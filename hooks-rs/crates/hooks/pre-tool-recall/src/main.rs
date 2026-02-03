@@ -5,7 +5,6 @@
 
 use anyhow::Result;
 use hook_common::prelude::*;
-use camino::Utf8PathBuf;
 use hook_memory::MemoryStorage;
 
 // Tools that benefit from memory recall
@@ -85,13 +84,8 @@ struct RecalledMemory {
 }
 
 fn recall_memories(query: &str) -> Vec<RecalledMemory> {
-    let project_dir = std::env::var("CLAUDE_PROJECT_DIR").unwrap_or_else(|_| ".".to_string());
-    let storage_path = Utf8PathBuf::from(&project_dir)
-        .join(".claude")
-        .join("memory")
-        .join("events.jsonl");
-
-    let storage = MemoryStorage::new(storage_path);
+    // Use global memory path (default: ~/.config/ai/memory/events.jsonl)
+    let storage = MemoryStorage::new(MemoryStorage::default_path());
 
     // Search memories
     let events = match storage.search(query) {

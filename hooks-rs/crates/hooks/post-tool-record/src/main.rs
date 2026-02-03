@@ -5,7 +5,6 @@
 
 use anyhow::Result;
 use hook_common::prelude::*;
-use camino::Utf8PathBuf;
 use hook_memory::{AgentType, MemoryEvent, MemoryScope, MemoryStorage, MemoryType};
 
 // Tools worth recording
@@ -46,13 +45,8 @@ fn record_tool_result(
     tool_input: &hook_common::input::ToolInput,
     tool_output: &str,
 ) -> bool {
-    let project_dir = std::env::var("CLAUDE_PROJECT_DIR").unwrap_or_else(|_| ".".to_string());
-    let storage_path = Utf8PathBuf::from(&project_dir)
-        .join(".claude")
-        .join("memory")
-        .join("events.jsonl");
-
-    let storage = MemoryStorage::new(storage_path);
+    // Use global memory path (default: ~/.config/ai/memory/events.jsonl)
+    let storage = MemoryStorage::new(MemoryStorage::default_path());
 
     // Extract summary
     let summary = extract_tool_summary(tool_name, tool_input, tool_output);

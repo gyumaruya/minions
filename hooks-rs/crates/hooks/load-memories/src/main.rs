@@ -5,7 +5,6 @@
 
 use anyhow::Result;
 use hook_common::prelude::*;
-use camino::Utf8PathBuf;
 use hook_memory::{MemoryStorage, MemoryType};
 use std::collections::HashMap;
 use std::fs;
@@ -49,13 +48,8 @@ fn get_state_file() -> PathBuf {
 }
 
 fn get_relevant_memories() -> Vec<MemoryEntry> {
-    let project_dir = std::env::var("CLAUDE_PROJECT_DIR").unwrap_or_else(|_| ".".to_string());
-    let storage_path = Utf8PathBuf::from(&project_dir)
-        .join(".claude")
-        .join("memory")
-        .join("events.jsonl");
-
-    let storage = MemoryStorage::new(storage_path);
+    // Use global memory path (default: ~/.config/ai/memory/events.jsonl)
+    let storage = MemoryStorage::new(MemoryStorage::default_path());
 
     let mut memories = Vec::new();
 
