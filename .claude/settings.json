@@ -208,7 +208,6 @@
     ]
   },
   "env": {
-    "EDITOR": "code --wait",
-    "CLAUDE_HOOK_DEBUG": "1"
+    "EDITOR": "code --wait"
   }
 }
