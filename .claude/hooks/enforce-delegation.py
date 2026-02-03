@@ -254,4 +254,5 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    # rust並行中のみ譲渡を許可
+    # main()

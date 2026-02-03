@@ -518,6 +518,7 @@ dev = [
 [package.dev-dependencies]
 dev = [
     { name = "playwright" },
+    { name = "pyyaml" },
 ]
 
 [package.metadata]
@@ -531,7 +532,10 @@ requires-dist = [
 provides-extras = ["dev"]
 
 [package.metadata.requires-dev]
-dev = [{ name = "playwright", specifier = ">=1.58.0" }]
+dev = [
+    { name = "playwright", specifier = ">=1.58.0" },
+    { name = "pyyaml", specifier = ">=6.0.3" },
+]
 
 [[package]]
 name = "mypy"
