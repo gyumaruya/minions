@@ -54,6 +54,9 @@ anyhow = "1.0"
 # Regex
 regex = "1.10"
 
+# Time
+chrono = { version = "0.4", features = ["serde"] }
+
 # File system
 tempfile = "3.10"
 fs2 = "0.4"

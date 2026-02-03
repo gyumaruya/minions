@@ -7,6 +7,8 @@ use anyhow::Result;
 use hook_common::prelude::*;
 use std::path::Path;
 
+const HOOK_NAME: &str = "enforce-hierarchy";
+
 fn main() -> Result<()> {
     let input = HookInput::from_stdin()?;
 
@@ -14,6 +16,7 @@ fn main() -> Result<()> {
 
     // Only check Edit and Write tools
     if tool_name != "Edit" && tool_name != "Write" {
+        log_decision(HOOK_NAME, tool_name, "", "", "skip", "Not Edit/Write tool");
         return Ok(());
     }
 
@@ -22,6 +25,14 @@ fn main() -> Result<()> {
 
     // Check if this file is allowed for upper agents
     if is_allowed_file(file_path) {
+        log_decision(
+            HOOK_NAME,
+            tool_name,
+            file_path,
+            "",
+            "allow",
+            "File in allowlist",
+        );
         return Ok(());
     }
 
@@ -30,6 +41,14 @@ fn main() -> Result<()> {
 
     // Musicians can edit anything
     if role == "musician" {
+        log_decision(
+            HOOK_NAME,
+            tool_name,
+            file_path,
+            &role,
+            "allow",
+            "Musician can edit anything",
+        );
         return Ok(());
     }
 
@@ -40,8 +59,27 @@ fn main() -> Result<()> {
             Task ツールでサブエージェント（Musician）を spawn して委譲してください。\n\n\
             → 詳細: .claude/rules/agent-hierarchy.md";
 
+        log_decision(
+            HOOK_NAME,
+            tool_name,
+            file_path,
+            &role,
+            "deny",
+            "Conductor cannot edit implementation files",
+        );
+
         let output = HookOutput::deny().with_context(message);
         output.write_stdout()?;
+    } else {
+        // Unknown role - log but allow
+        log_decision(
+            HOOK_NAME,
+            tool_name,
+            file_path,
+            &role,
+            "allow",
+            &format!("Unknown role '{}', defaulting to allow", role),
+        );
     }
 
     Ok(())

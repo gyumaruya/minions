@@ -10,6 +10,7 @@ use std::fs;
 use std::path::PathBuf;
 use std::time::{SystemTime, UNIX_EPOCH};
 
+const HOOK_NAME: &str = "enforce-delegation";
 const WORK_TOOLS: &[&str] = &["Edit", "Write", "Read", "Bash", "WebFetch", "WebSearch"];
 const DELEGATION_TOOL: &str = "Task";
 
@@ -38,6 +39,14 @@ fn main() -> Result<()> {
 
     // Musicians have no restrictions
     if role == "musician" {
+        log_decision(
+            HOOK_NAME,
+            tool_name,
+            "",
+            &role,
+            "skip",
+            "Musician has no restrictions",
+        );
         return Ok(());
     }
 
@@ -50,6 +59,14 @@ fn main() -> Result<()> {
 
     // Reset window if expired (10 minutes)
     if state.window_start_ts > 0 && now - state.window_start_ts > WINDOW_SECONDS {
+        log_decision(
+            HOOK_NAME,
+            tool_name,
+            "",
+            &role,
+            "reset",
+            "Window expired, resetting counter",
+        );
         state.non_delegate_count = 0;
         state.window_start_ts = now;
     }
@@ -57,6 +74,14 @@ fn main() -> Result<()> {
     // Handle delegation (Task tool with proper hierarchy)
     if tool_name == DELEGATION_TOOL {
         if is_delegation_from_tool_input(tool_input) {
+            log_decision(
+                HOOK_NAME,
+                tool_name,
+                "",
+                &role,
+                "delegation",
+                "Delegation detected, resetting counter",
+            );
             state.last_delegation_ts = now;
             state.non_delegate_count = 0;
             state.window_start_ts = now;
@@ -71,6 +96,14 @@ fn main() -> Result<()> {
         if tool_name == "Edit" || tool_name == "Write" || tool_name == "Read" {
             if let Some(file_path) = input.get_file_path() {
                 if is_allowed_path(file_path) {
+                    log_decision(
+                        HOOK_NAME,
+                        tool_name,
+                        file_path,
+                        &role,
+                        "allow",
+                        "File in allowlist",
+                    );
                     return Ok(());
                 }
             }
@@ -90,6 +123,15 @@ fn main() -> Result<()> {
                  連続 {} 回の作業ツール使用。\n\
                  Task ツールで下位エージェント（musician）へ委譲してください。",
                 role, state.non_delegate_count
+            );
+
+            log_decision(
+                HOOK_NAME,
+                tool_name,
+                "",
+                &role,
+                "deny",
+                &format!("Block threshold reached: {}/{}", state.non_delegate_count, BLOCK_THRESHOLD),
             );
 
             let output = HookOutput::deny().with_context(&message);
@@ -116,8 +158,26 @@ fn main() -> Result<()> {
             }
         }
 
+        log_decision(
+            HOOK_NAME,
+            tool_name,
+            "",
+            &role,
+            "warn",
+            &format!("Work tool count: {}/{}", state.non_delegate_count, BLOCK_THRESHOLD),
+        );
+
         let output = HookOutput::allow().with_context(reminder);
         output.write_stdout()?;
+    } else {
+        log_decision(
+            HOOK_NAME,
+            tool_name,
+            "",
+            &role,
+            "skip",
+            "Not a work tool",
+        );
     }
 
     save_state(&state_file, &state);
@@ -125,7 +185,7 @@ fn main() -> Result<()> {
 }
 
 fn get_role() -> String {
-    // Check environment variable first
+    // 1. Check environment variable first (explicit override)
     if let Ok(role) = std::env::var("AGENT_ROLE") {
         let role_lower = role.to_lowercase();
         if role_lower == "conductor" || role_lower == "musician" {
@@ -133,13 +193,42 @@ fn get_role() -> String {
         }
     }
 
-    // Check if conductor-session marker exists
+    // 2. Check if we're a subagent by looking at parent process
+    if is_subagent() {
+        return "musician".to_string();
+    }
+
+    // 3. Check conductor-session marker for main session
     if is_conductor_session() {
         return "conductor".to_string();
     }
 
-    // Safe default: musician
+    // 4. Safe default: musician
     "musician".to_string()
+}
+
+fn is_subagent() -> bool {
+    // 1. If CLAUDE_SUBAGENT is set, we're definitely a subagent
+    if std::env::var("CLAUDE_SUBAGENT").is_ok() {
+        return true;
+    }
+
+    // 2. Subagents typically don't have a controlling TTY
+    // Main sessions run in terminal with TTY attached
+    #[cfg(unix)]
+    {
+        use std::os::unix::io::AsRawFd;
+
+        // Check if stdin is a TTY
+        let stdin_is_tty = unsafe { libc::isatty(std::io::stdin().as_raw_fd()) } == 1;
+
+        // If no TTY, likely a subagent
+        if !stdin_is_tty {
+            return true;
+        }
+    }
+
+    false
 }
 
 fn is_conductor_session() -> bool {
@@ -151,9 +240,15 @@ fn is_conductor_session() -> bool {
 }
 
 fn state_path(role: &str) -> PathBuf {
-    let session_id = std::env::var("CLAUDE_SESSION_ID")
-        .unwrap_or_else(|_| std::process::id().to_string());
-    PathBuf::from("/tmp").join(format!("claude-delegation-{}-{}.json", session_id, role))
+    // Use project directory for stable session identification
+    let project_dir = std::env::var("CLAUDE_PROJECT_DIR").unwrap_or_else(|_| ".".to_string());
+
+    // Create a hash of project dir to use as session key
+    let project_hash: u64 = project_dir.bytes().fold(0u64, |acc, b| {
+        acc.wrapping_mul(31).wrapping_add(b as u64)
+    });
+
+    PathBuf::from("/tmp").join(format!("claude-delegation-{:x}-{}.json", project_hash, role))
 }
 
 fn load_state(path: &PathBuf) -> DelegationState {

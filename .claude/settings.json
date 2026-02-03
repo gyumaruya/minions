@@ -7,22 +7,22 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/auto-create-pr.py\"",
+            "command": "\"$CLAUDE_PROJECT_DIR/hooks-rs/target/release/auto-create-pr\"",
             "timeout": 60
           },
           {
             "type": "command",
-            "command": "\"$CLAUDE_PROJECT_DIR/.venv/bin/python\" \"$CLAUDE_PROJECT_DIR/.claude/hooks/load-memories.py\"",
+            "command": "\"$CLAUDE_PROJECT_DIR/hooks-rs/target/release/load-memories\"",
             "timeout": 5
           },
           {
             "type": "command",
-            "command": "\"$CLAUDE_PROJECT_DIR/.venv/bin/python\" \"$CLAUDE_PROJECT_DIR/.claude/hooks/auto-learn.py\"",
+            "command": "\"$CLAUDE_PROJECT_DIR/hooks-rs/target/release/auto-learn\"",
             "timeout": 5
           },
           {
             "type": "command",
-            "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/agent-router.py\"",
+            "command": "\"$CLAUDE_PROJECT_DIR/hooks-rs/target/release/agent-router\"",
             "timeout": 5
           }
         ]
@@ -34,7 +34,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "\"$CLAUDE_PROJECT_DIR/.venv/bin/python\" \"$CLAUDE_PROJECT_DIR/.claude/hooks/pre-tool-recall.py\"",
+            "command": "\"$CLAUDE_PROJECT_DIR/hooks-rs/target/release/pre-tool-recall\"",
             "timeout": 5
           }
         ]
@@ -44,27 +44,27 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/ensure-noreply-email.py\"",
+            "command": "\"$CLAUDE_PROJECT_DIR/hooks-rs/target/release/ensure-noreply-email\"",
             "timeout": 5
           },
           {
             "type": "command",
-            "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/enforce-japanese.py\"",
+            "command": "\"$CLAUDE_PROJECT_DIR/hooks-rs/target/release/enforce-japanese\"",
             "timeout": 5
           },
           {
             "type": "command",
-            "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/enforce-draft-pr.py\"",
+            "command": "\"$CLAUDE_PROJECT_DIR/hooks-rs/target/release/enforce-draft-pr\"",
             "timeout": 5
           },
           {
             "type": "command",
-            "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/enforce-no-merge.py\"",
+            "command": "\"$CLAUDE_PROJECT_DIR/hooks-rs/target/release/enforce-no-merge\"",
             "timeout": 5
           },
           {
             "type": "command",
-            "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/prevent-secrets-commit.py\"",
+            "command": "\"$CLAUDE_PROJECT_DIR/hooks-rs/target/release/prevent-secrets-commit\"",
             "timeout": 5
           }
         ]
@@ -74,17 +74,17 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/enforce-hierarchy.py\"",
+            "command": "\"$CLAUDE_PROJECT_DIR/hooks-rs/target/release/enforce-hierarchy\"",
             "timeout": 5
           },
           {
             "type": "command",
-            "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/ensure-pr-open.py\"",
+            "command": "\"$CLAUDE_PROJECT_DIR/hooks-rs/target/release/ensure-pr-open\"",
             "timeout": 10
           },
           {
             "type": "command",
-            "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/check-codex-before-write.py\"",
+            "command": "\"$CLAUDE_PROJECT_DIR/hooks-rs/target/release/check-codex-before-write\"",
             "timeout": 10
           }
         ]
@@ -94,7 +94,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/suggest-gemini-research.py\"",
+            "command": "\"$CLAUDE_PROJECT_DIR/hooks-rs/target/release/suggest-gemini-research\"",
             "timeout": 5
           }
         ]
@@ -104,7 +104,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/enforce-delegation.py\"",
+            "command": "\"$CLAUDE_PROJECT_DIR/hooks-rs/target/release/enforce-delegation\"",
             "timeout": 5
           }
         ]
@@ -116,7 +116,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "\"$CLAUDE_PROJECT_DIR/.venv/bin/python\" \"$CLAUDE_PROJECT_DIR/.claude/hooks/post-tool-record.py\"",
+            "command": "\"$CLAUDE_PROJECT_DIR/hooks-rs/target/release/post-tool-record\"",
             "timeout": 5
           }
         ]
@@ -126,12 +126,12 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/check-codex-after-plan.py\"",
+            "command": "\"$CLAUDE_PROJECT_DIR/hooks-rs/target/release/check-codex-after-plan\"",
             "timeout": 10
           },
           {
             "type": "command",
-            "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/hierarchy-permissions.py\"",
+            "command": "\"$CLAUDE_PROJECT_DIR/hooks-rs/target/release/hierarchy-permissions\"",
             "timeout": 5
           }
         ]
@@ -141,17 +141,17 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/post-test-analysis.py\"",
+            "command": "\"$CLAUDE_PROJECT_DIR/hooks-rs/target/release/post-test-analysis\"",
             "timeout": 10
           },
           {
             "type": "command",
-            "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/log-cli-tools.py\"",
+            "command": "\"$CLAUDE_PROJECT_DIR/hooks-rs/target/release/log-cli-tools\"",
             "timeout": 5
           },
           {
             "type": "command",
-            "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/auto-commit-on-verify.py\"",
+            "command": "\"$CLAUDE_PROJECT_DIR/hooks-rs/target/release/auto-commit-on-verify\"",
             "timeout": 10
           }
         ]
@@ -161,12 +161,12 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/lint-on-save.py\"",
+            "command": "\"$CLAUDE_PROJECT_DIR/hooks-rs/target/release/lint-on-save\"",
             "timeout": 30
           },
           {
             "type": "command",
-            "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/post-implementation-review.py\"",
+            "command": "\"$CLAUDE_PROJECT_DIR/hooks-rs/target/release/post-implementation-review\"",
             "timeout": 10
           }
         ]
@@ -188,74 +188,7 @@
       "Skill(*)",
       "TodoRead(*)",
       "TodoWrite(*)",
-      "Bash(cat:*)",
-      "Bash(ls:*)",
-      "Bash(find:*)",
-      "Bash(grep:*)",
-      "Bash(head:*)",
-      "Bash(tail:*)",
-      "Bash(wc:*)",
-      "Bash(sort:*)",
-      "Bash(uniq:*)",
-      "Bash(diff:*)",
-      "Bash(echo:*)",
-      "Bash(pwd:*)",
-      "Bash(cd:*)",
-      "Bash(mkdir:*)",
-      "Bash(touch:*)",
-      "Bash(cp:*)",
-      "Bash(mv:*)",
-      "Bash(chmod:*)",
-      "Bash(git:*)",
-      "Bash(python:*)",
-      "Bash(python3:*)",
-      "Bash(uv:*)",
-      "Bash(ruff:*)",
-      "Bash(black:*)",
-      "Bash(mypy:*)",
-      "Bash(pytest:*)",
-      "Bash(node:*)",
-      "Bash(npm:*)",
-      "Bash(npm install:*)",
-      "Bash(npm run dev:*)",
-      "Bash(npm run build:*)",
-      "Bash(npm run tsc:*)",
-      "Bash(npm run test:*)",
-      "Bash(npm run lint:*)",
-      "Bash(npm run format:*)",
-      "Bash(npm exec:*)",
-      "Bash(npm ls:*)",
-      "Bash(npx:*)",
-      "Bash(yarn:*)",
-      "Bash(pnpm:*)",
-      "Bash(bun:*)",
-      "Bash(curl:*)",
-      "Bash(wget:*)",
-      "Bash(jq:*)",
-      "Bash(sed:*)",
-      "Bash(awk:*)",
-      "Bash(xargs:*)",
-      "Bash(tree:*)",
-      "Bash(which:*)",
-      "Bash(type:*)",
-      "Bash(env:*)",
-      "Bash(export:*)",
-      "Bash(source:*)",
-      "Bash(docker:*)",
-      "Bash(docker-compose:*)",
-      "Bash(gemini:*)",
-      "Bash(codex:*)",
-      "Bash(gh:*)",
-      "Bash(copilot:*)",
-      "Bash(claude:*)",
-      "Bash(pkill:*)",
-      "Bash(for:*)",
-      "Bash(do)",
-      "Bash(then)",
-      "Bash(else)",
-      "Bash(fi)",
-      "Bash(done)",
-      "Bash(true)"
+      "Bash(*)"
     ],
     "deny": [
       "Read(./.env)",
@@ -268,10 +201,14 @@
       "Read(~/.aws/**)",
       "Read(~/.config/gcloud/**)",
       "Bash(rm -rf /)",
-      "Bash(rm -rf ~)"
+      "Bash(rm -rf /*)",
+      "Bash(rm -rf ~)",
+      "Bash(rm -rf ~/*)",
+      "Bash(sudo rm -rf *)"
     ]
   },
   "env": {
-    "EDITOR": "code --wait"
+    "EDITOR": "code --wait",
+    "CLAUDE_HOOK_DEBUG": "1"
   }
 }
