@@ -1,0 +1,6 @@
+{
+  "hookSpecificOutput": {
+    "additionalContext": "[lint-on-save] Issues in src/main.py:\nruff format failed:\nerror: Failed to format src/main.py: No such file or directory (os error 2)\n\nruff check issues:\nE902 No such file or directory (os error 2)\n--> src/main.py:1:1\n\nFound 1 error.\n",
+    "hookEventName": "PostToolUse"
+  }
+}

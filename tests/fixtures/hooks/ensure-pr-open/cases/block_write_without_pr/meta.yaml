@@ -1,0 +1,3 @@
+description: ensure-pr-open - block_write_without_pr case
+exit_code: 0
+stderr: null

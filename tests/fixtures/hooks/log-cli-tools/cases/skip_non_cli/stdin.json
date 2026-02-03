@@ -1,0 +1,6 @@
+{
+  "tool_input": {
+    "file_path": "/some/file.txt"
+  },
+  "tool_name": "Read"
+}

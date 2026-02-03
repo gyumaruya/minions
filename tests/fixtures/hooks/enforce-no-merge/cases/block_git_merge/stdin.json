@@ -1,0 +1,6 @@
+{
+  "tool_input": {
+    "command": "git merge main"
+  },
+  "tool_name": "Bash"
+}

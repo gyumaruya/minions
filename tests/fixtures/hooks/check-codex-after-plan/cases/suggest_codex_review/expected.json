@@ -1,0 +1,6 @@
+{
+  "hookSpecificOutput": {
+    "additionalContext": "[Codex Review Suggestion] Plan task completed. Consider having Codex review this plan for potential improvements. **Recommended**: Use Task tool with subagent_type='general-purpose' to consult Codex and preserve main context.",
+    "hookEventName": "PostToolUse"
+  }
+}

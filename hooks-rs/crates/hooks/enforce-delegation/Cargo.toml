@@ -1,0 +1,17 @@
+[package]
+name = "enforce-delegation"
+version.workspace = true
+edition = "2024"
+
+[[bin]]
+name = "enforce-delegation"
+path = "src/main.rs"
+
+[dependencies]
+hook-common.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+anyhow.workspace = true
+
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"

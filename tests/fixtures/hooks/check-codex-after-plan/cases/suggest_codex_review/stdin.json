@@ -1,0 +1,7 @@
+{
+  "tool_input": {
+    "prompt": "Design system",
+    "subagent_type": "Plan"
+  },
+  "tool_name": "Task"
+}

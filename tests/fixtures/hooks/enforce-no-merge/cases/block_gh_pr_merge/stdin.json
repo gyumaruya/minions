@@ -1,0 +1,6 @@
+{
+  "tool_input": {
+    "command": "gh pr merge 123"
+  },
+  "tool_name": "Bash"
+}

@@ -1,0 +1,6 @@
+{
+  "tool_input": {
+    "command": "gh pr create --title \"test\""
+  },
+  "tool_name": "Bash"
+}

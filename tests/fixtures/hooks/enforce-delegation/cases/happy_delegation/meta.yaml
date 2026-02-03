@@ -1,0 +1,5 @@
+description: enforce-delegation - happy_delegation case
+exit_code: 1
+stderr: "  File \"/Users/takuya/minions/.claude/hooks/enforce-delegation.py\", line\
+  \ 258\n    # main()\nIndentationError: expected an indented block after 'if' statement\
+  \ on line 256\n"

@@ -1,0 +1,3 @@
+description: ensure-pr-open - allow_read_tools case
+exit_code: 0
+stderr: null

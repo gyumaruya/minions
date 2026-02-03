@@ -1,0 +1,14 @@
+[package]
+name = "lint-on-save"
+version.workspace = true
+edition = "2024"
+
+[[bin]]
+name = "lint-on-save"
+path = "src/main.rs"
+
+[dependencies]
+hook-common.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+anyhow.workspace = true

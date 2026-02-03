@@ -1,0 +1,11 @@
+description: session-end - cleanup_on_end case
+exit_code: 0
+stderr: '[session-end] Generating session summary...
+
+  [session-end] Running memory compaction...
+
+  [session-end] Evaluating session performance...
+
+  [session-end] Report saved: /Users/takuya/minions/.claude/memory/reports/unknown.json
+
+  '

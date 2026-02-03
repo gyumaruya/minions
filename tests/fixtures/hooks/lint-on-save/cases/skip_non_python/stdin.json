@@ -1,0 +1,7 @@
+{
+  "tool_input": {
+    "content": "# Test",
+    "file_path": "README.md"
+  },
+  "tool_name": "Write"
+}

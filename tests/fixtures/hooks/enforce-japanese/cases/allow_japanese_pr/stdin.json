@@ -1,0 +1,6 @@
+{
+  "tool_input": {
+    "command": "gh pr create --draft --title \"\u6a5f\u80fd\u8ffd\u52a0\""
+  },
+  "tool_name": "Bash"
+}

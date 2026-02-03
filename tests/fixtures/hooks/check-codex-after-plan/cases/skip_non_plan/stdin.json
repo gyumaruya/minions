@@ -1,0 +1,7 @@
+{
+  "tool_input": {
+    "prompt": "Find files",
+    "subagent_type": "Explore"
+  },
+  "tool_name": "Task"
+}

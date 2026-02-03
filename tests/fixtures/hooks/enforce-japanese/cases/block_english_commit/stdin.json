@@ -1,0 +1,6 @@
+{
+  "tool_input": {
+    "command": "git commit -m \"Add feature\""
+  },
+  "tool_name": "Bash"
+}

@@ -1,0 +1,6 @@
+{
+  "hookSpecificOutput": {
+    "additionalContext": "[Codex Debug Suggestion] Multiple failures detected (4 issues). Consider consulting Codex for debugging analysis. **Recommended**: Use Task tool with subagent_type='general-purpose' to consult Codex with full error context and preserve main context.",
+    "hookEventName": "PostToolUse"
+  }
+}

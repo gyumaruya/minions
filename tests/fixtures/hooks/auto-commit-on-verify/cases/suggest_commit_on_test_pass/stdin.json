@@ -1,0 +1,7 @@
+{
+  "tool_input": {
+    "command": "pytest"
+  },
+  "tool_name": "Bash",
+  "tool_output": "PASSED"
+}

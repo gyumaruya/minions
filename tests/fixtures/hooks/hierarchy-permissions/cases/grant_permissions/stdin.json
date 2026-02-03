@@ -1,0 +1,7 @@
+{
+  "tool_input": {
+    "prompt": "Do work",
+    "subagent_type": "general-purpose"
+  },
+  "tool_name": "Task"
+}

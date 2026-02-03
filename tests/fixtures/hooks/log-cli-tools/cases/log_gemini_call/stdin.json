@@ -1,0 +1,6 @@
+{
+  "tool_input": {
+    "command": "gemini -p 'test'"
+  },
+  "tool_name": "Bash"
+}
