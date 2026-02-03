@@ -64,3 +64,4 @@ logs/
 .claude/.session-pr-created
 .claude/.conductor-session
 .claude/memory/
+hooks-rs/target/
