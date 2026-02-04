@@ -1,0 +1,13 @@
+[package]
+name = "session-start"
+version.workspace = true
+edition = "2024"
+
+[[bin]]
+name = "session-start"
+path = "src/main.rs"
+
+[dependencies]
+hook-common.workspace = true
+anyhow.workspace = true
+serde_json.workspace = true

@@ -780,6 +780,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "session-start"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "hook-common",
+ "serde_json",
+]
+
+[[package]]
 name = "shared_child"
 version = "1.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"

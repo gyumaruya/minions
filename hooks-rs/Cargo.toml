@@ -31,6 +31,8 @@ members = [
     "crates/hooks/auto-learn",
     "crates/hooks/pre-tool-recall",
     "crates/hooks/post-tool-record",
+    # Tier 6 - Session hooks
+    "crates/hooks/session-start",
 ]
 
 [workspace.package]
