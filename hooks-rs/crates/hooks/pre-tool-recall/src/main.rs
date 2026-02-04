@@ -85,7 +85,11 @@ struct RecalledMemory {
 
 fn recall_memories(query: &str) -> Vec<RecalledMemory> {
     // Use global memory path (default: ~/.config/ai/memory/events.jsonl)
-    let storage = MemoryStorage::new(MemoryStorage::default_path());
+    let storage_path = match MemoryStorage::default_path() {
+        Ok(path) => path,
+        Err(_) => return Vec::new(),
+    };
+    let storage = MemoryStorage::new(storage_path);
 
     // Search memories
     let events = match storage.search(query) {

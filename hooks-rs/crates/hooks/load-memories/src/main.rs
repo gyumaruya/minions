@@ -49,7 +49,14 @@ fn get_state_file() -> PathBuf {
 
 fn get_relevant_memories() -> Vec<MemoryEntry> {
     // Use global memory path (default: ~/.config/ai/memory/events.jsonl)
-    let storage = MemoryStorage::new(MemoryStorage::default_path());
+    let storage_path = match MemoryStorage::default_path() {
+        Ok(path) => path,
+        Err(e) => {
+            eprintln!("Warning: Failed to determine memory storage path: {}", e);
+            return Vec::new();
+        }
+    };
+    let storage = MemoryStorage::new(storage_path);
 
     let mut memories = Vec::new();
 

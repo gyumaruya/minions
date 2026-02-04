@@ -61,6 +61,7 @@ chrono = { version = "0.4", features = ["serde"] }
 tempfile = "3.10"
 fs2 = "0.4"
 camino = "1.1"
+dirs = "5.0"
 
 # Process
 duct = "0.13"

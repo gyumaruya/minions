@@ -1,7 +1,7 @@
 //! JSONL storage for memory events.
 
 use crate::schema::{MemoryEvent, MemoryScope, MemoryType};
-use anyhow::{Context, Result};
+use anyhow::{Context, Result, anyhow};
 use camino::Utf8PathBuf;
 use std::fs::{self, OpenOptions};
 use std::io::{BufRead, BufReader, Write};
@@ -23,19 +23,35 @@ impl MemoryStorage {
     ///
     /// Priority:
     /// 1. AI_MEMORY_PATH environment variable (if set)
-    /// 2. ~/.config/ai/memory/events.jsonl (global default)
-    pub fn default_path() -> Utf8PathBuf {
-        // Allow override via environment variable
+    /// 2. OS config directory (from `dirs::config_dir()`)
+    /// 3. Error if neither is available
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if:
+    /// - AI_MEMORY_PATH is not set
+    /// - OS config directory cannot be determined (no HOME or XDG_CONFIG_HOME)
+    pub fn default_path() -> Result<Utf8PathBuf> {
+        // Priority 1: Allow override via environment variable
         if let Ok(custom_path) = std::env::var("AI_MEMORY_PATH") {
-            return Utf8PathBuf::from(custom_path);
+            return Ok(Utf8PathBuf::from(custom_path));
         }
 
-        // Default: ~/.config/ai/memory/events.jsonl (global)
-        if let Some(home) = dirs_home() {
-            Utf8PathBuf::from(format!("{}/.config/ai/memory/events.jsonl", home))
-        } else {
-            Utf8PathBuf::from(".config/ai/memory/events.jsonl")
+        // Priority 2: Use OS config directory (XDG_CONFIG_HOME on Linux, ~/Library/Application Support on macOS, etc.)
+        if let Some(config_dir) = dirs::config_dir() {
+            if let Ok(utf8_path) = Utf8PathBuf::try_from(config_dir) {
+                let memory_dir = utf8_path.join("ai/memory/events.jsonl");
+                return Ok(memory_dir);
+            }
         }
+
+        // No valid path found
+        Err(anyhow!(
+            "Failed to determine memory storage path. Please set one of:\n  \
+            1. Environment variable: AI_MEMORY_PATH=/path/to/events.jsonl\n  \
+            2. Environment variable: HOME (for config directory resolution)\n  \
+            3. Environment variable: XDG_CONFIG_HOME (on Linux)"
+        ))
     }
 
     /// Ensure storage directory exists.
@@ -135,15 +151,12 @@ impl MemoryStorage {
     }
 }
 
-/// Get home directory.
-fn dirs_home() -> Option<String> {
-    std::env::var("HOME").ok()
-}
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::schema::AgentType;
+    use std::env;
     use tempfile::tempdir;
 
     #[test]
@@ -222,5 +235,73 @@ mod tests {
         let prefs = storage.load_by_type(MemoryType::Preference).unwrap();
         assert_eq!(prefs.len(), 1);
         assert_eq!(prefs[0].content, "Pref 1");
+    }
+
+    #[test]
+    fn test_default_path_with_env() {
+        let dir = tempdir().unwrap();
+        let test_path = dir.path().join("test.jsonl");
+        let test_path_str = test_path.to_string_lossy().to_string();
+
+        // Set AI_MEMORY_PATH
+        unsafe {
+            env::set_var("AI_MEMORY_PATH", &test_path_str);
+        }
+        let result = MemoryStorage::default_path();
+        unsafe {
+            env::remove_var("AI_MEMORY_PATH");
+        }
+
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap().to_string(), test_path_str);
+    }
+
+    #[test]
+    fn test_default_path_fallback_to_dirs() {
+        // Verify that when AI_MEMORY_PATH is not set, we get a valid path or error
+        // (depending on whether dirs::config_dir() works)
+        unsafe {
+            env::remove_var("AI_MEMORY_PATH");
+        }
+
+        let result = MemoryStorage::default_path();
+
+        // Should either succeed (if OS config dir is available) or return a clear error
+        match result {
+            Ok(path) => {
+                // Path should contain 'ai/memory/events.jsonl'
+                assert!(path.to_string().contains("ai/memory/events.jsonl"));
+            }
+            Err(e) => {
+                // Error should mention the required environment variables
+                let msg = e.to_string();
+                assert!(
+                    msg.contains("AI_MEMORY_PATH") || msg.contains("HOME") || msg.contains("XDG_CONFIG_HOME"),
+                    "Error message should mention required env vars: {}",
+                    msg
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn test_storage_with_custom_path() {
+        let dir = tempdir().unwrap();
+        let path = dir.path().join("custom/nested/test.jsonl");
+        let storage = MemoryStorage::new(Utf8PathBuf::from_path_buf(path).unwrap());
+
+        let event = MemoryEvent::new(
+            "Custom path test",
+            MemoryType::Observation,
+            MemoryScope::Session,
+            AgentType::Claude,
+        );
+
+        // Ensure directory creation works for nested paths
+        storage.append(&event).unwrap();
+
+        let loaded = storage.load_all().unwrap();
+        assert_eq!(loaded.len(), 1);
+        assert_eq!(loaded[0].content, "Custom path test");
     }
 }

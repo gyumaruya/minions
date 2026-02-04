@@ -46,7 +46,14 @@ fn record_tool_result(
     tool_output: &str,
 ) -> bool {
     // Use global memory path (default: ~/.config/ai/memory/events.jsonl)
-    let storage = MemoryStorage::new(MemoryStorage::default_path());
+    let storage_path = match MemoryStorage::default_path() {
+        Ok(path) => path,
+        Err(e) => {
+            eprintln!("Warning: Failed to determine memory storage path: {}", e);
+            return false;
+        }
+    };
+    let storage = MemoryStorage::new(storage_path);
 
     // Extract summary
     let summary = extract_tool_summary(tool_name, tool_input, tool_output);
