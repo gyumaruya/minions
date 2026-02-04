@@ -33,6 +33,8 @@ members = [
     "crates/hooks/post-tool-record",
     # Tier 6 - Session hooks
     "crates/hooks/session-start",
+    # Tier 7 - Post-push hooks
+    "crates/hooks/auto-create-pr-on-push",
 ]
 
 [workspace.package]

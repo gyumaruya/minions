@@ -78,6 +78,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "auto-create-pr-on-push"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "hook-common",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "auto-learn"
 version = "0.1.0"
 dependencies = [
