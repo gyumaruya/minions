@@ -34,6 +34,7 @@ Self-improvement uses a policy feedback loop: retrieval outcomes and task result
 
 Introduce a lightweight, layered configuration/memory architecture that separates stable user memory from volatile tool-specific configs. The system favors simple file structures and symlinks, supports graceful degradation when tools evolve, and allows both global and per-project overrides without heavy dependencies.
 
+**Design Proposal (Codex):**
 ```
 Global (stable, shared)
   ~/.ai/
@@ -48,6 +49,27 @@ Project (scoped, override)
     policies/        # project guardrails
     tools/           # tool-specific overrides for this repo
 ```
+
+**Implemented (2026-02-04):**
+```
+Global (XDG Base Directory compliant)
+  ~/.config/ai/
+    hooks/bin/       # symlink to minions/hooks-rs/target/release
+    memory/          # events.jsonl (global memory)
+
+  ~/.claude/
+    settings.json    # global hooks definition (23 hooks)
+
+Project (minimal override)
+  <project>/.claude/
+    settings.json    # project-specific env/overrides only
+```
+
+**Key Differences:**
+- Used `~/.config/ai/` instead of `~/.ai/` (XDG compliance)
+- Simplified to memory + hooks only (no policies/profiles/tools yet)
+- Hooks managed via `~/.claude/settings.json` (Claude Code native)
+- Phase 1: Global memory only; local memory TBD
 
 Resolution order: Project overrides Global; tool-specific configs read from `.ai/tools/<tool>/` then fallback to `~/.ai/tools/<tool>/` and finally to tool defaults. Stable memory remains tool-agnostic and is referenced by tools via simple adapters.
 
