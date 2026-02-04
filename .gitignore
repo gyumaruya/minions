@@ -65,3 +65,4 @@ logs/
 .claude/.conductor-session
 .claude/memory/
 hooks-rs/target/
+resources/hooks-rs/target/
