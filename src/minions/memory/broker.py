@@ -88,6 +88,14 @@ class MemoryBroker:
         # ID cache for N+1 query mitigation
         self._id_cache: dict[str, MemoryEvent] = {}
 
+        # File lock for thread-safe writes
+        import threading
+
+        self._file_lock = threading.Lock()
+
+        # Redaction patterns (compiled once)
+        self._redaction_patterns = self._compile_redaction_patterns()
+
         # mem0 integration
         self._mem0 = None
         self._mem0_enabled = enable_mem0
@@ -108,6 +116,96 @@ class MemoryBroker:
         except Exception as e:
             print(f"Warning: Failed to initialize mem0: {e}")
             self._mem0_enabled = False
+
+    # =========================================================================
+    # Sensitive Data Redaction
+    # =========================================================================
+
+    def _compile_redaction_patterns(self) -> list[tuple[re.Pattern, str]]:
+        """Compile redaction patterns for sensitive data."""
+        patterns = [
+            # API Keys (OpenAI, Anthropic, etc.)
+            (re.compile(r"sk-[a-zA-Z0-9]{32,}"), "[REDACTED_API_KEY]"),
+            (re.compile(r"sk-proj-[a-zA-Z0-9_-]{32,}"), "[REDACTED_API_KEY]"),
+            # AWS
+            (re.compile(r"AKIA[0-9A-Z]{16}"), "[REDACTED_AWS_KEY]"),
+            (
+                re.compile(r"[a-zA-Z0-9/+=]{40}(?=\s|$)"),
+                "[REDACTED_AWS_SECRET]",
+            ),
+            # GitHub tokens (flexible length)
+            (re.compile(r"ghp_[a-zA-Z0-9]{20,}"), "[REDACTED_GITHUB_TOKEN]"),
+            (re.compile(r"gho_[a-zA-Z0-9]{20,}"), "[REDACTED_GITHUB_TOKEN]"),
+            (re.compile(r"ghs_[a-zA-Z0-9]{20,}"), "[REDACTED_GITHUB_TOKEN]"),
+            # Generic secrets
+            (
+                re.compile(
+                    r"(api[_-]?key|apikey|secret|password|token)\s*[=:]\s*['\"]?([^\s'\"]+)",
+                    re.IGNORECASE,
+                ),
+                r"\1=[REDACTED]",
+            ),
+            # JWT tokens
+            (
+                re.compile(r"eyJ[a-zA-Z0-9_-]*\.eyJ[a-zA-Z0-9_-]*\.[a-zA-Z0-9_-]*"),
+                "[REDACTED_JWT]",
+            ),
+            # Private keys
+            (
+                re.compile(
+                    r"-----BEGIN (RSA |EC |DSA )?PRIVATE KEY-----.*?-----END \1PRIVATE KEY-----",
+                    re.DOTALL,
+                ),
+                "[REDACTED_PRIVATE_KEY]",
+            ),
+        ]
+        return patterns
+
+    def _apply_redaction_patterns(self, text: str) -> str:
+        """Apply redaction patterns to text."""
+        if not text:
+            return text
+
+        result = text
+        for pattern, replacement in self._redaction_patterns:
+            result = pattern.sub(replacement, result)
+        return result
+
+    def _redact_sensitive_data(self, event: MemoryEvent) -> MemoryEvent:
+        """Redact sensitive data from both content and metadata."""
+        # Redact content
+        event.content = self._apply_redaction_patterns(event.content)
+
+        # Redact metadata
+        if event.metadata:
+            # Command (for Bash tool)
+            if "command" in event.metadata:
+                event.metadata["command"] = self._apply_redaction_patterns(
+                    str(event.metadata["command"])
+                )
+
+            # Tool input
+            if "tool_input" in event.metadata:
+                if isinstance(event.metadata["tool_input"], str):
+                    event.metadata["tool_input"] = self._apply_redaction_patterns(
+                        event.metadata["tool_input"]
+                    )
+                elif isinstance(event.metadata["tool_input"], dict):
+                    # Recursively redact dict values
+                    for key, value in event.metadata["tool_input"].items():
+                        if isinstance(value, str):
+                            event.metadata["tool_input"][key] = (
+                                self._apply_redaction_patterns(value)
+                            )
+
+            # Other potentially sensitive fields
+            for key in ["args", "prompt", "query", "input"]:
+                if key in event.metadata and isinstance(event.metadata[key], str):
+                    event.metadata[key] = self._apply_redaction_patterns(
+                        event.metadata[key]
+                    )
+
+        return event
 
     # =========================================================================
     # Session Management
@@ -296,13 +394,57 @@ class MemoryBroker:
             raise ValueError("Confidence must be between 0 and 1")
 
     def _redact(self, event: MemoryEvent) -> MemoryEvent:
-        """Redact sensitive data from memory content."""
+        """Redact sensitive data from memory content and metadata."""
+        # Redact content
         content = event.content
         for pattern in SENSITIVE_PATTERNS:
             content = re.sub(pattern, "[REDACTED]", content, flags=re.IGNORECASE)
 
-        # Create new event with redacted content
-        if content != event.content:
+        # Apply additional redaction patterns
+        content = self._apply_redaction_patterns(content)
+
+        # Redact metadata
+        metadata = event.metadata.copy() if event.metadata else {}
+        metadata_changed = False
+
+        # Redact command (for Bash tool)
+        if "command" in metadata:
+            original = str(metadata["command"])
+            redacted = self._apply_redaction_patterns(original)
+            if redacted != original:
+                metadata["command"] = redacted
+                metadata_changed = True
+
+        # Redact tool_input
+        if "tool_input" in metadata:
+            if isinstance(metadata["tool_input"], str):
+                original = metadata["tool_input"]
+                redacted = self._apply_redaction_patterns(original)
+                if redacted != original:
+                    metadata["tool_input"] = redacted
+                    metadata_changed = True
+            elif isinstance(metadata["tool_input"], dict):
+                tool_input = metadata["tool_input"].copy()
+                for key, value in tool_input.items():
+                    if isinstance(value, str):
+                        redacted = self._apply_redaction_patterns(value)
+                        if redacted != value:
+                            tool_input[key] = redacted
+                            metadata_changed = True
+                if metadata_changed:
+                    metadata["tool_input"] = tool_input
+
+        # Redact other potentially sensitive fields
+        for key in ["args", "prompt", "query", "input"]:
+            if key in metadata and isinstance(metadata[key], str):
+                original = metadata[key]
+                redacted = self._apply_redaction_patterns(original)
+                if redacted != original:
+                    metadata[key] = redacted
+                    metadata_changed = True
+
+        # Create new event if redacted
+        if content != event.content or metadata_changed:
             return MemoryEvent(
                 id=event.id,
                 content=content,
@@ -313,21 +455,42 @@ class MemoryBroker:
                 confidence=event.confidence,
                 ttl_days=event.ttl_days,
                 tags=event.tags,
-                metadata={**event.metadata, "_redacted": True},
+                metadata={**metadata, "_redacted": True},
                 created_at=event.created_at,
             )
         return event
 
     def _persist_jsonl(self, event: MemoryEvent) -> None:
-        """Persist event to JSONL file."""
+        """Persist event to JSONL file with thread-safe locking."""
         # Session-scoped events go to session file
         if event.scope == MemoryScope.SESSION:
             target_file = self._get_session_file()
         else:
             target_file = self.events_file
 
-        with open(target_file, "a", encoding="utf-8") as f:
-            f.write(json.dumps(event.to_dict(), ensure_ascii=False) + "\n")
+        # Thread lock for same-process concurrency
+        with self._file_lock:
+            with open(target_file, "a", encoding="utf-8") as f:
+                # File lock for multi-process concurrency (Unix only)
+                try:
+                    import fcntl
+
+                    fcntl.flock(f.fileno(), fcntl.LOCK_EX)
+                except (ImportError, AttributeError):
+                    # Windows or unsupported platform - thread lock is sufficient
+                    pass
+
+                try:
+                    f.write(json.dumps(event.to_dict(), ensure_ascii=False) + "\n")
+                    f.flush()
+                finally:
+                    # Release file lock if acquired
+                    try:
+                        import fcntl
+
+                        fcntl.flock(f.fileno(), fcntl.LOCK_UN)
+                    except (ImportError, AttributeError):
+                        pass
 
     def _index_mem0(self, event: MemoryEvent) -> None:
         """Index event in mem0 for semantic search."""
@@ -386,6 +549,14 @@ class MemoryBroker:
         """
         results: list[MemoryEvent] = []
 
+        # Convert string enums if needed
+        if isinstance(scope, str):
+            scope = MemoryScope(scope)
+        if isinstance(source_agent, str):
+            source_agent = AgentType(source_agent)
+        if isinstance(memory_type, str):
+            memory_type = MemoryType(memory_type)
+
         # Semantic search with mem0
         if use_semantic and self._mem0_enabled and self._mem0:
             try:
@@ -396,6 +567,13 @@ class MemoryBroker:
                     if event_id:
                         event = self._get_by_id(event_id)
                         if event:
+                            # Apply filters (CRITICAL: prevent scope leakage)
+                            if scope and event.scope != scope:
+                                continue
+                            if source_agent and event.source_agent != source_agent:
+                                continue
+                            if memory_type and event.memory_type != memory_type:
+                                continue
                             results.append(event)
             except Exception as e:
                 print(f"Warning: mem0 search failed: {e}")

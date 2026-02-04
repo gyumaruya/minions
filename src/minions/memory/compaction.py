@@ -43,6 +43,11 @@ class CompactionWorker:
         self.hot_threshold = 7
         self.warm_threshold = 30
 
+        # File lock for thread-safe writes
+        import threading
+
+        self._file_lock = threading.Lock()
+
     def determine_tier(self, event: MemoryEvent) -> str:
         """Determine which tier an event belongs to."""
         try:
@@ -298,9 +303,30 @@ class CompactionWorker:
             # Note: warm_others are summarized and kept in metadata
         )
 
-        with open(self.events_file, "w", encoding="utf-8") as f:
-            for event in compacted_events:
-                f.write(json.dumps(event.to_dict(), ensure_ascii=False) + "\n")
+        # Thread-safe write with file locking
+        with self._file_lock:
+            with open(self.events_file, "w", encoding="utf-8") as f:
+                # File lock for multi-process concurrency (Unix only)
+                try:
+                    import fcntl
+
+                    fcntl.flock(f.fileno(), fcntl.LOCK_EX)
+                except (ImportError, AttributeError):
+                    # Windows or unsupported platform
+                    pass
+
+                try:
+                    for event in compacted_events:
+                        f.write(json.dumps(event.to_dict(), ensure_ascii=False) + "\n")
+                    f.flush()
+                finally:
+                    # Release file lock if acquired
+                    try:
+                        import fcntl
+
+                        fcntl.flock(f.fileno(), fcntl.LOCK_UN)
+                    except (ImportError, AttributeError):
+                        pass
 
         return {
             "total_events": len(events),

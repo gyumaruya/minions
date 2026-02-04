@@ -56,6 +56,45 @@ def truncate_content(content: str, max_length: int = MAX_CONTENT_LENGTH) -> str:
     return content[: max_length - 3] + "..."
 
 
+def redact_sensitive_data(text: str) -> str:
+    """Redact sensitive data from text."""
+    import re
+
+    if not text:
+        return text
+
+    patterns = [
+        # API Keys (OpenAI, Anthropic, etc.)
+        (re.compile(r"sk-[a-zA-Z0-9]{32,}"), "[REDACTED_API_KEY]"),
+        (re.compile(r"sk-proj-[a-zA-Z0-9_-]{32,}"), "[REDACTED_API_KEY]"),
+        # AWS
+        (re.compile(r"AKIA[0-9A-Z]{16}"), "[REDACTED_AWS_KEY]"),
+        (re.compile(r"[a-zA-Z0-9/+=]{40}(?=\s|$)"), "[REDACTED_AWS_SECRET]"),
+        # GitHub tokens (flexible length)
+        (re.compile(r"ghp_[a-zA-Z0-9]{20,}"), "[REDACTED_GITHUB_TOKEN]"),
+        (re.compile(r"gho_[a-zA-Z0-9]{20,}"), "[REDACTED_GITHUB_TOKEN]"),
+        (re.compile(r"ghs_[a-zA-Z0-9]{20,}"), "[REDACTED_GITHUB_TOKEN]"),
+        # Generic secrets
+        (
+            re.compile(
+                r"(api[_-]?key|apikey|secret|password|token)\s*[=:]\s*['\"]?([^\s'\"]+)",
+                re.IGNORECASE,
+            ),
+            r"\1=[REDACTED]",
+        ),
+        # JWT tokens
+        (
+            re.compile(r"eyJ[a-zA-Z0-9_-]*\.eyJ[a-zA-Z0-9_-]*\.[a-zA-Z0-9_-]*"),
+            "[REDACTED_JWT]",
+        ),
+    ]
+
+    result = text
+    for pattern, replacement in patterns:
+        result = pattern.sub(replacement, result)
+    return result
+
+
 def extract_tool_summary(tool_name: str, tool_input: dict, tool_output: str) -> str:
     """Extract a meaningful summary from tool execution."""
     if tool_name == "Bash":
@@ -276,6 +315,9 @@ Context: {_extract_decision_context(tool_input)}"""
             # OBSERVATION: Default format
             content = f"Tool: {tool_name}\n{summary}"
 
+        # Redact sensitive data from content
+        content = redact_sensitive_data(content)
+
         # Build metadata
         metadata = {
             "tool_name": tool_name,
@@ -284,13 +326,22 @@ Context: {_extract_decision_context(tool_input)}"""
             "memory_type": memory_type_value,
         }
 
-        # Add relevant input details
+        # Add relevant input details (with redaction)
         if tool_name == "Bash":
-            metadata["command"] = truncate_content(tool_input.get("command", ""), 200)
+            command = str(tool_input.get("command", ""))
+            # Redact sensitive data from command
+            command = redact_sensitive_data(command)
+            metadata["command"] = truncate_content(command, 200)
         elif tool_name in ("Edit", "Write"):
             metadata["file_path"] = tool_input.get("file_path", "")
         elif tool_name == "Task":
             metadata["subagent_type"] = tool_input.get("subagent_type", "unknown")
+            # Redact prompt if present
+            if "prompt" in tool_input:
+                prompt = str(tool_input.get("prompt", ""))
+                metadata["prompt"] = redact_sensitive_data(
+                    truncate_content(prompt, 200)
+                )
 
         # Determine scope based on memory type
         scope = MemoryScope.SESSION
