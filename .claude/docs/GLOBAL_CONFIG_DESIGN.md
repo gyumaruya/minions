@@ -570,8 +570,344 @@ EOF
 
 ---
 
+## セキュリティ考慮事項
+
+### 背景
+
+グローバル設定はシンボリックリンク（symlink）を使用して minions プロジェクトのフックバイナリを参照する。
+この設計には利点と注意すべき点がある。
+
+### Symlink の仕組みと権限の意味
+
+**基本的な仕組み:**
+
+```bash
+~/.config/ai/hooks/bin → /Users/takuya/minions/hooks-rs/target/release
+```
+
+- **symlink の所有者と権限**: `~/.config/ai/hooks/bin` の所有者と権限
+- **参照先の権限**: `minions/hooks-rs/target/release/` の権限が実効
+
+**実行時の権限:**
+
+```
+Claude Code プロセス（実行ユーザー権限）
+    → symlink を読む（~/.config/ai/hooks/bin）
+    → 参照先を実行（minions/hooks-rs/target/release/prevent-secrets-commit）
+    → 参照先のバイナリが実行される
+```
+
+**重要な点**: バイナリ実行自体は実行ユーザー権限で行われますが、
+**minions/ に書き込み可能なユーザーがいれば、バイナリ本体を差し替えることで任意のコード実行が可能**になります。
+
+### セキュリティリスク
+
+#### 1. minions ディレクトリへの書き込み権限
+
+**リスク:**
+
+minions ディレクトリへの書き込み権限があれば、以下が可能になる：
+
+| リスク | 詳細 |
+|--------|------|
+| **フックバイナリの改ざん** | フックを悪意あるものに置き換え → 全プロジェクトで実行 |
+| **ビルド成果物の改変** | `target/release/` 配下のバイナリを改変 |
+| **メモリシステムの侵害** | グローバル記憶（`~/.config/ai/memory/events.jsonl`）はシンボリンク経由で参照されないが、minions 配下の記憶は改変可能 |
+
+**影響範囲:**
+
+- minions で実行されるすべてのフック（23個）
+- minions を使用する全プロジェクト
+
+#### 2. グローバル記憶（~/.config/ai/memory/events.jsonl）
+
+**リスク:**
+
+記憶ファイルに保存される情報：
+
+```json
+{
+  "type": "error",
+  "category": "debugging",
+  "content": "API timeout: max_retries exceeded"
+  // ↓ 直接参照可能（ファイルのみ、symlink経由ではない）
+}
+```
+
+- **読み取り**: 記憶ファイルを読まれると学習履歴・エラー情報が露出
+- **改変**: 記憶を改変されると LLM の判断が歪む
+
+#### 3. グローバル設定（~/.claude/settings.json）
+
+**リスク:**
+
+- **permissions セクション**: 何がブロックされているか
+- **フック定義**: どのコマンドが実行されるか
+- **enabledPlugins**: どのプラグインが有効か
+
+改変されると、セキュリティガードレールが無効化される。
+
+### 推奨される権限設定
+
+#### 最小限の権限
+
+```bash
+# minions ディレクトリ（所有者のみ読み書き実行）
+ls -la ~/minions/
+# drwx------ (700)  ← 所有者のみ読み書き実行（他ユーザーはアクセス不可）
+
+# hooks-rs/target/release/（所有者のみ書き込み、実行可能）
+ls -la ~/minions/hooks-rs/target/release/
+# -rwxr-xr-x (755)  ← 実行可能だが他ユーザーは変更不可
+
+# グローバル設定ディレクトリ（所有者のみアクセス）
+ls -la ~/.config/ai/
+# drwx------ (700)  ← 所有者のみ読み書き実行
+
+# グローバル記憶（所有者のみ読み書き）
+ls -la ~/.config/ai/memory/events.jsonl
+# -rw------- (600)  ← 所有者のみ読み書き、他ユーザーはアクセス不可
+
+# グローバル Claude 設定（所有者のみ読み書き）
+ls -la ~/.claude/settings.json
+# -rw------- (600)  ← 所有者のみ読み書き、他ユーザーはアクセス不可
+```
+
+**重要**: マルチユーザーや共有環境では **700/600 を必須**としてください。644 は他ユーザーの読み取りを許すため、シークレット露出につながります。
+
+#### チェックコマンド
+
+```bash
+# minions ディレクトリの権限確認（所有者のみであること）
+stat -f "%A %N" ~/minions
+# Expected: drwx------ (700) 所有者のみ
+
+# フックバイナリの権限確認（実行可能だが所有者のみ書き込み）
+stat -f "%A %N" ~/minions/hooks-rs/target/release/prevent-secrets-commit
+# Expected: -rwxr-xr-x (755)
+
+# グローバル設定の権限確認（所有者のみ）
+stat -f "%A %N" ~/.config/ai/memory/events.jsonl
+stat -f "%A %N" ~/.claude/settings.json
+# Expected: -rw------- (600) 所有者のみ
+
+# グループ/他ユーザー書き込み権限の検出
+find ~/minions -perm -g+w -o -perm -o+w
+# 出力がない = 安全（他ユーザーに書き込み権限なし）
+
+# symlink が正しく設定されているか、かつ差し替えされていないか
+readlink ~/.config/ai/hooks/bin
+# Expected: /Users/takuya/minions/hooks-rs/target/release
+
+# ACL の確認（追加権限が付与されていないか）
+ls -le ~/.config/ai ~/.claude
+# "+" マークがない = 安全（ACL なし）
+```
+
+### 緩和策
+
+#### 1. ファイルシステムレベルの保護
+
+**初回セットアップ（セキュリティ厳格化）:**
+
+```bash
+# minions ディレクトリを所有者のみアクセス可能に
+chmod -R go-rwx ~/minions
+# または
+chmod -R u+rwX,go-rwx ~/minions
+
+# グローバル AI ディレクトリ
+chmod 700 ~/.config/ai
+chmod 700 ~/.config/ai/hooks
+chmod 700 ~/.config/ai/memory
+
+# グローバル記憶・設定（所有者のみ）
+chmod 600 ~/.config/ai/memory/events.jsonl
+
+# Claude Code グローバル設定
+chmod 700 ~/.claude
+chmod 600 ~/.claude/settings.json
+```
+
+**umask 設定（今後のファイル作成時に安全な権限で作成されることを確保）:**
+
+```bash
+# ~/.bashrc または ~/.zshrc に追加
+umask 077
+# → 新しいファイル: 600（所有者のみ読み書き）
+# → 新しいディレクトリ: 700（所有者のみアクセス）
+```
+
+#### 2. アクセス制御
+
+| 項目 | 誰がアクセス可能か | 推奨制限 |
+|------|------------------|--------|
+| **minions/ への書き込み** | 本人のみ | ✓ 他ユーザー拒否 |
+| **~/.config/ai/ の読み取り** | 本人 + 信頼するアプリ | ✓ 必要に応じて限定 |
+| **~/.config/ai/memory/ の読み取り** | 本人 + Claude Code | ✓ 他ユーザー拒否 |
+
+#### 3. 定期監査
+
+**重要な変更を監視（初回セットアップ後）:**
+
+```bash
+# 権限の監査（グループ/他ユーザー書き込みの検出）
+find ~/minions -perm -g+w -o -perm -o+w
+# 出力がない = 安全
+
+# ACL の確認（予期しない追加権限）
+ls -le ~/.config/ai ~/.claude
+# 出力に "+" マークがない = 安全
+
+# 所有者・グループの確認
+stat -f "%Su:%Sg %N" ~/minions ~/.config/ai ~/.claude/settings.json
+# Expected: <username>:staff（またはグループなし）
+```
+
+**定期的な変更検知（推奨頻度: 月 1 回以上）:**
+
+```bash
+# バイナリ改ざん検知（基準値作成 - 最初の 1 回のみ）
+shasum -a 256 ~/minions/hooks-rs/target/release/* > ~/.config/ai/.hook-checksums.txt
+
+# 定期確認（差分検知）
+shasum -a 256 -c ~/.config/ai/.hook-checksums.txt
+# OK がすべてに付与される = 改ざんなし
+# FAILED が出る = 改ざんの可能性
+
+# ファイル変更の監視（macOS）
+ls -lT ~/.claude/settings.json ~/.config/ai/memory/events.jsonl
+
+# 設定ファイル自体の改変検知
+shasum -a 256 ~/.claude/settings.json > ~/.config/ai/.settings-checksum.txt
+shasum -a 256 -c ~/.config/ai/.settings-checksum.txt
+
+# symlink の完全性確認
+readlink ~/.config/ai/hooks/bin
+# Expected: /Users/takuya/minions/hooks-rs/target/release（変わっていない）
+
+# グローバル記憶の異常増加検知
+wc -l ~/.config/ai/memory/events.jsonl
+# 前回比で 1000 行以上の急増 = 異常な学習の可能性
+```
+
+#### 4. 供給鎖セキュリティと更新管理
+
+**フックバイナリの再現可能性:**
+
+```bash
+# ビルド時の依存クレート固定（Cargo.lock 管理）
+cd ~/minions/hooks-rs
+git log Cargo.lock | head -5
+# 変更履歴から依存パッケージの意図しない更新を検知
+
+# ビルド再現確認（定期的）
+cargo build --release
+shasum -a 256 target/release/prevent-secrets-commit
+# 新しいビルド結果のハッシュが一致することで改ざんを検知
+```
+
+**環境変数によるオーバーライド（注意）:**
+
+monorepo や複数プロジェクト環境でカスタマイズが必要な場合：
+
+```bash
+# プロジェクト固有のフックを使用
+export AI_HOOK_PATH="/path/to/project/hooks"
+
+# プロジェクト固有の記憶を使用
+export AI_MEMORY_PATH="/path/to/project/.claude/memory/events.jsonl"
+```
+
+**重要な警告**: 環境変数は シェル環境から改変可能なため、信頼できないシェルスクリプトや自動化ツールでは慎重に使用してください。
+`.claude/settings.json` に明記されたパスの方がより安全です。
+
+### セットアップ時の安全性確認
+
+`setup-global-config.sh` 実行時の確認事項：
+
+```bash
+# Step 1: バックアップ確認
+ls -la ~/.claude/settings.json.backup.*
+
+# Step 2: symlink の確認
+readlink -f ~/.config/ai/hooks/bin
+
+# Step 3: 記憶ファイルの確認
+head -1 ~/.config/ai/memory/events.jsonl
+
+# Step 4: 権限の確認
+stat -f "%A %N" ~/minions
+```
+
+### 追加の危険性
+
+#### Symlink 差し替えリスク
+
+**リスク:**
+
+```bash
+# 親ディレクトリが書き込み可能な場合
+rm ~/.config/ai/hooks/bin
+ln -s /malicious/hooks ~/.config/ai/hooks/bin
+# → 以降のフック実行が改ざんされたバイナリを実行
+```
+
+**対策:**
+
+```bash
+# 親ディレクトリの権限確認
+stat -f "%A %N" ~/.config/ai/hooks
+# Expected: drwx------ (700)
+
+# symlink が正しいか定期確認
+readlink -f ~/.config/ai/hooks/bin
+# Expected: /Users/takuya/minions/hooks-rs/target/release
+```
+
+#### 所有者・グループの監視
+
+**リスク:**
+
+```bash
+# 所有権が変わると権限が機能しない
+chown -R otheruser ~/minions
+# → 所有者が変わると、該当ユーザーが自由に改変可能に
+```
+
+**対策:**
+
+```bash
+# 所有権の確認（月 1 回以上）
+stat -f "%Su:%Sg %N" ~/minions ~/.config/ai
+# Expected: <username>:staff
+
+# 所有権を修正（必要に応じて）
+sudo chown -R $(whoami): ~/minions ~/.config/ai
+```
+
+### まとめ
+
+| 面 | リスク | 緩和策 |
+|----|--------|--------|
+| **ファイル改変** | フックバイナリの改ざん | ディレクトリ権限を 700、所有者のみ書き込み |
+| **Symlink 差し替え** | hooks/bin への悪意あるリンク | 親ディレクトリ 700 + 定期確認 |
+| **情報露出** | グローバル記憶の読み取り | 記憶ファイルの権限を 600、所有者のみ |
+| **ガードレール無効化** | settings.json の改変 | 設定ファイルの権限を 600、チェックサム検証 |
+| **所有権改変** | 権限スキームの破壊 | 月 1 回以上所有権を監視・確認 |
+| **マルチユーザー環境** | 他ユーザーの干渉 | umask 077、ディレクトリ 700/ファイル 600 を必須 |
+
+**基本原則:**
+1. minions プロジェクトは **所有者のみがアクセス・変更可能** な場所に配置
+2. グローバル設定・記憶も **所有者のみアクセス** に限定（600/700）
+3. **定期監査** でファイル権限・所有権・symlink の完全性を確認
+4. マルチユーザー環境では **700/600 を必須** とする
+
+---
+
 ## 関連ドキュメント
 
 - [Claude Code 公式ドキュメント](https://docs.anthropic.com/en/docs/claude-code)
+- `.claude/rules/security.md` - コード内のセキュリティルール
 - `.claude/rules/` - コーディングルール
 - `.claude/docs/MEMORY_SYSTEM.md` - 記憶システム
