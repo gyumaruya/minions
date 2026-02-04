@@ -193,16 +193,14 @@ fn get_role() -> String {
         }
     }
 
-    // 2. Check conductor-session marker first (before TTY check)
-    // This ensures that main sessions with .conductor-session marker
-    // are correctly identified as conductor, even without TTY
-    if is_conductor_session() {
-        return "conductor".to_string();
-    }
-
-    // 3. Check if we're a subagent by looking at TTY
+    // 2. Check if we're a subagent by looking at parent process
     if is_subagent() {
         return "musician".to_string();
+    }
+
+    // 3. Check conductor-session marker for main session
+    if is_conductor_session() {
+        return "conductor".to_string();
     }
 
     // 4. Safe default: musician
