@@ -19,7 +19,6 @@ if TYPE_CHECKING:
     from minions.memory.scoring import ScoringContext
 
 from minions.memory.schema import (
-    SENSITIVE_PATTERNS,
     AgentType,
     MemoryEvent,
     MemoryScope,
@@ -288,39 +287,36 @@ class MemoryBroker:
             result = pattern.sub(replacement, result)
         return result
 
+    def _redact_recursive(self, obj: Any) -> Any:
+        """Recursively redact sensitive data from any object."""
+        if isinstance(obj, str):
+            # String: apply redaction patterns
+            return self._apply_redaction_patterns(obj)
+
+        elif isinstance(obj, dict):
+            # Dict: recursively redact each value
+            return {key: self._redact_recursive(value) for key, value in obj.items()}
+
+        elif isinstance(obj, list):
+            # List: recursively redact each item
+            return [self._redact_recursive(item) for item in obj]
+
+        elif isinstance(obj, tuple):
+            # Tuple: recursively redact each item
+            return tuple(self._redact_recursive(item) for item in obj)
+
+        else:
+            # Other types (int, bool, None, etc.): return as-is
+            return obj
+
     def _redact_sensitive_data(self, event: MemoryEvent) -> MemoryEvent:
-        """Redact sensitive data from both content and metadata."""
+        """Redact sensitive data from both content and metadata (recursive)."""
         # Redact content
         event.content = self._apply_redaction_patterns(event.content)
 
-        # Redact metadata
+        # Redact metadata (recursive)
         if event.metadata:
-            # Command (for Bash tool)
-            if "command" in event.metadata:
-                event.metadata["command"] = self._apply_redaction_patterns(
-                    str(event.metadata["command"])
-                )
-
-            # Tool input
-            if "tool_input" in event.metadata:
-                if isinstance(event.metadata["tool_input"], str):
-                    event.metadata["tool_input"] = self._apply_redaction_patterns(
-                        event.metadata["tool_input"]
-                    )
-                elif isinstance(event.metadata["tool_input"], dict):
-                    # Recursively redact dict values
-                    for key, value in event.metadata["tool_input"].items():
-                        if isinstance(value, str):
-                            event.metadata["tool_input"][key] = (
-                                self._apply_redaction_patterns(value)
-                            )
-
-            # Other potentially sensitive fields
-            for key in ["args", "prompt", "query", "input"]:
-                if key in event.metadata and isinstance(event.metadata[key], str):
-                    event.metadata[key] = self._apply_redaction_patterns(
-                        event.metadata[key]
-                    )
+            event.metadata = self._redact_recursive(event.metadata)
 
         return event
 
@@ -374,7 +370,7 @@ class MemoryBroker:
         self._validate(event)
 
         # Redact sensitive data
-        event = self._redact(event)
+        event = self._redact_sensitive_data(event)
 
         # Persist to JSONL
         self._persist_jsonl(event)
@@ -532,73 +528,6 @@ class MemoryBroker:
         if event.confidence < 0 or event.confidence > 1:
             raise ValueError("Confidence must be between 0 and 1")
 
-    def _redact(self, event: MemoryEvent) -> MemoryEvent:
-        """Redact sensitive data from memory content and metadata."""
-        # Redact content
-        content = event.content
-        for pattern in SENSITIVE_PATTERNS:
-            content = re.sub(pattern, "[REDACTED]", content, flags=re.IGNORECASE)
-
-        # Apply additional redaction patterns
-        content = self._apply_redaction_patterns(content)
-
-        # Redact metadata
-        metadata = event.metadata.copy() if event.metadata else {}
-        metadata_changed = False
-
-        # Redact command (for Bash tool)
-        if "command" in metadata:
-            original = str(metadata["command"])
-            redacted = self._apply_redaction_patterns(original)
-            if redacted != original:
-                metadata["command"] = redacted
-                metadata_changed = True
-
-        # Redact tool_input
-        if "tool_input" in metadata:
-            if isinstance(metadata["tool_input"], str):
-                original = metadata["tool_input"]
-                redacted = self._apply_redaction_patterns(original)
-                if redacted != original:
-                    metadata["tool_input"] = redacted
-                    metadata_changed = True
-            elif isinstance(metadata["tool_input"], dict):
-                tool_input = metadata["tool_input"].copy()
-                for key, value in tool_input.items():
-                    if isinstance(value, str):
-                        redacted = self._apply_redaction_patterns(value)
-                        if redacted != value:
-                            tool_input[key] = redacted
-                            metadata_changed = True
-                if metadata_changed:
-                    metadata["tool_input"] = tool_input
-
-        # Redact other potentially sensitive fields
-        for key in ["args", "prompt", "query", "input"]:
-            if key in metadata and isinstance(metadata[key], str):
-                original = metadata[key]
-                redacted = self._apply_redaction_patterns(original)
-                if redacted != original:
-                    metadata[key] = redacted
-                    metadata_changed = True
-
-        # Create new event if redacted
-        if content != event.content or metadata_changed:
-            return MemoryEvent(
-                id=event.id,
-                content=content,
-                memory_type=event.memory_type,
-                scope=event.scope,
-                source_agent=event.source_agent,
-                context=event.context,
-                confidence=event.confidence,
-                ttl_days=event.ttl_days,
-                tags=event.tags,
-                metadata={**metadata, "_redacted": True},
-                created_at=event.created_at,
-            )
-        return event
-
     def _persist_jsonl(self, event: MemoryEvent) -> None:
         """Persist event to JSONL file with thread-safe locking."""
         # Get target file based on scope
@@ -704,7 +633,7 @@ class MemoryBroker:
                     # Retrieve full event from JSONL by ID
                     event_id = m.get("metadata", {}).get("event_id")
                     if event_id:
-                        event = self._get_by_id(event_id)
+                        event = self._get_by_id(event_id, scope_hint=scope)
                         if event:
                             # Apply filters (CRITICAL: prevent scope leakage)
                             if scope and event.scope != scope:
@@ -841,21 +770,21 @@ class MemoryBroker:
 
         # Search based on scope filter
         if scope is None:
-            # Search all scopes
+            # Search all scopes (but only current session for SESSION scope)
             files_to_search = [
                 self.global_dir / "events.jsonl",  # Global (USER, AGENT, PUBLIC)
                 self.project_dir / "events.jsonl",  # Project
             ]
-            # Add all session files
-            if self.sessions_dir.exists():
-                files_to_search.extend(self.sessions_dir.glob("*.jsonl"))
+            # Add current session file only (prevent cross-session leakage)
+            session_id = self.get_session_id()
+            session_file = self.sessions_dir / f"{session_id}.jsonl"
+            if session_file.exists():
+                files_to_search.append(session_file)
         elif scope == MemoryScope.SESSION:
-            # Search session files only
-            files_to_search = (
-                list(self.sessions_dir.glob("*.jsonl"))
-                if self.sessions_dir.exists()
-                else []
-            )
+            # Search current session file only
+            session_id = self.get_session_id()
+            session_file = self.sessions_dir / f"{session_id}.jsonl"
+            files_to_search = [session_file] if session_file.exists() else []
         elif scope == MemoryScope.PROJECT:
             # Search project file only
             files_to_search = [self.project_dir / "events.jsonl"]
@@ -919,24 +848,52 @@ class MemoryBroker:
                         continue
         return events
 
-    def _get_by_id(self, event_id: str) -> MemoryEvent | None:
+    def _get_by_id(
+        self, event_id: str, scope_hint: MemoryScope | None = None
+    ) -> MemoryEvent | None:
         """
-        Get event by ID from JSONL files across all scopes.
+        Get event by ID from JSONL files.
 
         Uses simple cache to mitigate N+1 queries during search.
         TODO: Add proper indexing (e.g., SQLite) for better performance.
+
+        Args:
+            event_id: Event ID to find
+            scope_hint: Optional scope hint to narrow search (performance optimization)
         """
         # Check cache first
         if event_id in self._id_cache:
             return self._id_cache[event_id]
 
-        # Search all scope files
-        files_to_search = [
-            self.global_dir / "events.jsonl",
-            self.project_dir / "events.jsonl",
-        ]
-        if self.sessions_dir.exists():
-            files_to_search.extend(self.sessions_dir.glob("*.jsonl"))
+        # Determine files to search based on scope hint
+        files_to_search: list[Path] = []
+
+        if scope_hint == MemoryScope.SESSION:
+            # Search current session file only
+            session_id = self.get_session_id()
+            session_file = self.sessions_dir / f"{session_id}.jsonl"
+            if session_file.exists():
+                files_to_search.append(session_file)
+        elif scope_hint == MemoryScope.PROJECT:
+            # Search project file only
+            files_to_search.append(self.project_dir / "events.jsonl")
+        elif scope_hint in (MemoryScope.USER, MemoryScope.AGENT, MemoryScope.PUBLIC):
+            # Search global file only
+            files_to_search.append(self.global_dir / "events.jsonl")
+        else:
+            # No hint or ALL: search all files
+            files_to_search.extend(
+                [
+                    self.global_dir / "events.jsonl",
+                    self.project_dir / "events.jsonl",
+                ]
+            )
+            if self.sessions_dir.exists():
+                # Without scope hint, we must search current session only to prevent leakage
+                session_id = self.get_session_id()
+                session_file = self.sessions_dir / f"{session_id}.jsonl"
+                if session_file.exists():
+                    files_to_search.append(session_file)
 
         for file_path in files_to_search:
             for event in self._load_jsonl(file_path):
@@ -966,12 +923,13 @@ class MemoryBroker:
         decision: str,
         agent: AgentType = AgentType.CODEX,
         context: str = "",
+        scope: MemoryScope = MemoryScope.PROJECT,
     ) -> MemoryEvent:
         """Record design decision."""
         return self.add(
             content=decision,
             memory_type=MemoryType.DECISION,
-            scope=MemoryScope.PUBLIC,
+            scope=scope,
             source_agent=agent,
             context=context,
         )
@@ -990,22 +948,32 @@ class MemoryBroker:
             context=topic,
         )
 
-    def remember_error(self, error: str, solution: str) -> MemoryEvent:
+    def remember_error(
+        self,
+        error: str,
+        solution: str,
+        scope: MemoryScope = MemoryScope.PROJECT,
+    ) -> MemoryEvent:
         """Record error pattern and solution."""
         return self.add(
             content=f"Error: {error}\nSolution: {solution}",
             memory_type=MemoryType.ERROR,
-            scope=MemoryScope.USER,
+            scope=scope,
             source_agent=AgentType.CLAUDE,
             metadata={"error": error, "solution": solution},
         )
 
-    def remember_workflow(self, workflow: str, trigger: str = "") -> MemoryEvent:
+    def remember_workflow(
+        self,
+        workflow: str,
+        trigger: str = "",
+        scope: MemoryScope = MemoryScope.PROJECT,
+    ) -> MemoryEvent:
         """Record workflow pattern."""
         return self.add(
             content=workflow,
             memory_type=MemoryType.WORKFLOW,
-            scope=MemoryScope.USER,
+            scope=scope,
             source_agent=AgentType.CLAUDE,
             context=trigger,
         )
@@ -1060,41 +1028,92 @@ class MemoryBroker:
         }
 
     def cleanup_expired(self) -> int:
-        """Remove expired memories based on TTL across all scopes."""
-        now = datetime.now()
+        """Remove expired memories based on TTL across all scopes (thread-safe)."""
         total_removed = 0
 
-        # Process each scope file
+        # Process global and project files
         scope_files = [
             self.global_dir / "events.jsonl",
             self.project_dir / "events.jsonl",
         ]
 
         for file_path in scope_files:
-            if not file_path.exists():
-                continue
+            if file_path.exists():
+                total_removed += self._cleanup_file_with_lock(file_path)
 
-            events = self._load_jsonl(file_path)
-            kept = []
-            removed = 0
-
-            for event in events:
-                if event.ttl_days is not None:
-                    created = datetime.fromisoformat(event.created_at)
-                    if now - created > timedelta(days=event.ttl_days):
-                        removed += 1
-                        continue
-                kept.append(event)
-
-            # Rewrite file if any removed
-            if removed > 0:
-                with open(file_path, "w", encoding="utf-8") as f:
-                    for event in kept:
-                        f.write(json.dumps(event.to_dict(), ensure_ascii=False) + "\n")
-
-            total_removed += removed
+        # Process all session files
+        if self.sessions_dir.exists():
+            for session_file in self.sessions_dir.glob("*.jsonl"):
+                total_removed += self._cleanup_file_with_lock(session_file)
 
         return total_removed
+
+    def _cleanup_file_with_lock(self, file_path: Path) -> int:
+        """
+        Cleanup a single file with proper file locking.
+
+        Uses temporary file and atomic replacement to avoid data loss.
+
+        Args:
+            file_path: Path to the JSONL file to clean up
+
+        Returns:
+            Number of removed events
+        """
+        import fcntl
+
+        temp_file = file_path.with_suffix(".cleaning")
+        removed_count = 0
+        now = datetime.now()
+
+        try:
+            with self._file_lock:
+                # Read and filter with exclusive lock
+                with open(file_path, "r+", encoding="utf-8") as f_in:
+                    # Acquire exclusive lock
+                    fcntl.flock(f_in.fileno(), fcntl.LOCK_EX)
+
+                    try:
+                        # Write non-expired events to temp file
+                        with open(temp_file, "w", encoding="utf-8") as f_out:
+                            for line in f_in:
+                                line = line.strip()
+                                if not line:
+                                    continue
+
+                                try:
+                                    event_dict = json.loads(line)
+                                    event = MemoryEvent.from_dict(event_dict)
+
+                                    # Check if expired
+                                    if event.ttl_days is not None:
+                                        created = datetime.fromisoformat(
+                                            event.created_at
+                                        )
+                                        if now - created > timedelta(
+                                            days=event.ttl_days
+                                        ):
+                                            removed_count += 1
+                                            continue
+
+                                    # Keep this event
+                                    f_out.write(line + "\n")
+
+                                except (json.JSONDecodeError, KeyError, ValueError):
+                                    # Keep malformed lines to avoid data loss
+                                    f_out.write(line + "\n")
+
+                        # Atomically replace original file
+                        temp_file.replace(file_path)
+
+                    finally:
+                        fcntl.flock(f_in.fileno(), fcntl.LOCK_UN)
+
+        finally:
+            # Cleanup temp file if it still exists
+            temp_file.unlink(missing_ok=True)
+
+        return removed_count
 
     # =========================================================================
     # Memory Promotion

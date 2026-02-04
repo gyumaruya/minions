@@ -472,12 +472,10 @@ User feedback detected"""
                     truncate_content(prompt, 200)
                 )
 
-        # Determine scope based on memory type
-        scope = MemoryScope.SESSION
-        if memory_type_value in ("decision", "workflow", "preference"):
-            scope = (
-                MemoryScope.USER
-            )  # Decisions, workflows, and preferences are user-scoped
+        # Determine scope based on DEFAULT_SCOPE_BY_TYPE
+        from minions.memory.broker import DEFAULT_SCOPE_BY_TYPE
+
+        scope = DEFAULT_SCOPE_BY_TYPE.get(memory_type_value, MemoryScope.SESSION)
 
         broker.add(
             content=content,

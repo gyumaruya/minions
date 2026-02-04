@@ -107,12 +107,20 @@ class MemoryEvent:
 
 # Sensitive patterns to redact
 SENSITIVE_PATTERNS = [
+    # API Keys
     r"sk-[a-zA-Z0-9_-]{20,}",  # OpenAI API key (various formats)
     r"sk-proj-[a-zA-Z0-9_-]+",  # OpenAI project API key
     r"sk-ant-[a-zA-Z0-9\-]{20,}",  # Anthropic API key
     r"AIza[a-zA-Z0-9_-]{35}",  # Google API key
     r"ghp_[a-zA-Z0-9]{36}",  # GitHub token
     r"gho_[a-zA-Z0-9]{36}",  # GitHub OAuth token
-    r"password\s*[:=]\s*\S+",  # Password patterns
-    r"secret\s*[:=]\s*\S+",  # Secret patterns
+    # Bearer tokens
+    r"Bearer\s+[a-zA-Z0-9\-._~+/]+",  # Bearer token
+    # Key-value patterns
+    r"token[\"']?\s*[:=]\s*[\"']?[a-zA-Z0-9\-._~+/]+",  # token=xxx
+    r"api[_-]?key[\"']?\s*[:=]\s*[\"']?[a-zA-Z0-9\-._~+/]+",  # api_key=xxx
+    r"password[\"']?\s*[:=]\s*[\"']?\S+",  # password=xxx
+    r"secret[\"']?\s*[:=]\s*[\"']?\S+",  # secret=xxx
+    # Private keys
+    r"-----BEGIN\s+(?:RSA\s+)?PRIVATE\s+KEY-----",  # Private key
 ]
