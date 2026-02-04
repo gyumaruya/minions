@@ -5,16 +5,16 @@ import json
 import sys
 from pathlib import Path
 
+# Add scripts to path
+sys.path.insert(0, str(Path(__file__).parent.parent / "scripts"))
+from config_utils import is_agent_enabled
+
 """
 PreToolUse hook: Check if Codex consultation is recommended before Write/Edit.
 
 This hook analyzes the file being modified and suggests Codex consultation
 for design decisions, complex implementations, or architectural changes.
 """
-
-# Add scripts to path
-sys.path.insert(0, str(Path(__file__).parent.parent / "scripts"))
-from config_utils import is_agent_enabled
 
 # Input validation constants
 MAX_PATH_LENGTH = 4096

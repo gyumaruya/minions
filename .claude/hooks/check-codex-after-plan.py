@@ -5,16 +5,16 @@ import json
 import sys
 from pathlib import Path
 
+# Add scripts to path
+sys.path.insert(0, str(Path(__file__).parent.parent / "scripts"))
+from config_utils import is_agent_enabled
+
 """
 PostToolUse hook: Suggest Codex review after Plan tasks.
 
 This hook runs after Task tool execution and suggests Codex consultation
 for reviewing plans and implementation strategies.
 """
-
-# Add scripts to path
-sys.path.insert(0, str(Path(__file__).parent.parent / "scripts"))
-from config_utils import is_agent_enabled
 
 # Task descriptions that suggest planning/design work
 PLAN_INDICATORS = [
