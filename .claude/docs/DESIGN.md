@@ -148,6 +148,8 @@ Resolution order: Project overrides Global; tool-specific configs read from `.ai
 | Introduce explicit Tool Adapter + Hook Capability layer with versioned contracts | Decouple fast-changing CLIs from stable memory/storage and allow graceful fallback | Hardcode hook behavior per tool | 2026-02-03 |
 | Version memory schema and hook I/O with semver and per-event schema_version fields | Enables forward/backward compatibility and safe migrations | Implicit schema evolution | 2026-02-03 |
 | Add a migration tool that replays JSONL into a new schema and rebuilds derived indexes | Deterministic upgrades without data loss | In-place mutation of JSONL | 2026-02-03 |
+| Fail when no stable base directory exists (HOME missing) and avoid relative fallbacks; resolve memory path in order: AI_MEMORY_PATH → OS config dir (XDG) → error | Predictable paths and explicit failure over cwd-dependent behavior | Relative fallback, implicit cwd usage | 2026-02-04 |
+| Make default_path return Result<Utf8PathBuf, Error> to surface missing base dir and allow callers to handle | Avoid silent fallbacks and simplify error reporting | Always returning a path with fallback | 2026-02-04 |
 
 ## TODO
 
@@ -206,3 +208,4 @@ Resolution order: Project overrides Global; tool-specific configs read from `.ai
 | 2026-02-02 | Added hook parity testing details (normalization rules, fixture format, differential vs snapshot strategy) |
 | 2026-02-03 | Added layered config/memory system design (global + project separation, tool shims, fallback resolution) |
 | 2026-02-03 | Added open questions about simplifying global/local memory and hook versioning |
+| 2026-02-04 | Added decision to avoid relative fallbacks when HOME is missing and to return Result for default_path |

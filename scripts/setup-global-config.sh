@@ -32,6 +32,7 @@ fi
 echo "[1/5] ディレクトリ構造を作成..."
 mkdir -p "$GLOBAL_AI_DIR/hooks"
 mkdir -p "$GLOBAL_AI_DIR/memory"
+mkdir -p "$GLOBAL_CLAUDE_DIR"
 
 # 3. フックバイナリへのシンボリックリンク
 echo "[2/5] フックバイナリをリンク..."
@@ -60,8 +61,12 @@ echo "[4/5] グローバル Claude 設定を作成..."
 
 # 既存の settings.json をバックアップ
 if [ -f "$GLOBAL_CLAUDE_DIR/settings.json" ]; then
-    cp "$GLOBAL_CLAUDE_DIR/settings.json" "$GLOBAL_CLAUDE_DIR/settings.json.backup"
-    echo "  -> 既存設定をバックアップ: settings.json.backup"
+    BACKUP_TIME=$(date +%Y%m%d_%H%M%S)
+    BACKUP_FILE="$GLOBAL_CLAUDE_DIR/settings.json.backup.$BACKUP_TIME"
+    cp "$GLOBAL_CLAUDE_DIR/settings.json" "$BACKUP_FILE"
+    echo "  -> ⚠ 既存設定をバックアップ"
+    echo "     保存先: $BACKUP_FILE"
+    echo "     既存設定は新しい設定に上書きされます"
 fi
 
 # プラグイン設定を保持しつつ、フックを追加
@@ -155,23 +160,62 @@ echo "[5/5] minions のローカル設定を更新..."
 
 # フック定義をバックアップ
 if [ -f "$MINIONS_DIR/.claude/settings.json" ]; then
-    cp "$MINIONS_DIR/.claude/settings.json" "$MINIONS_DIR/.claude/settings.json.pre-global-backup"
-    echo "  -> minions 設定をバックアップ: settings.json.pre-global-backup"
+    BACKUP_TIME=$(date +%Y%m%d_%H%M%S)
+    BACKUP_FILE="$MINIONS_DIR/.claude/settings.json.pre-global-backup.$BACKUP_TIME"
+    cp "$MINIONS_DIR/.claude/settings.json" "$BACKUP_FILE"
+    echo "  -> ⚠ minions ローカル設定をバックアップ"
+    echo "     保存先: $BACKUP_FILE"
+    echo "     グローバルフックを参照するよう更新してください"
 fi
 
 echo ""
-echo "=== セットアップ完了 ==="
+echo "=========================================="
+echo "✅ セットアップ完了"
+echo "=========================================="
 echo ""
-echo "作成されたファイル:"
-echo "  $GLOBAL_AI_DIR/hooks/bin -> フックバイナリ (symlink)"
-echo "  $GLOBAL_AI_DIR/memory/events.jsonl -> グローバル記憶"
-echo "  $GLOBAL_CLAUDE_DIR/settings.json -> グローバルフック設定"
+echo "📁 作成・更新されたファイル:"
 echo ""
-echo "次のステップ:"
-echo "  1. minions/.claude/settings.json からプロジェクト固有のフックのみ残す"
-echo "  2. フックがグローバル記憶を参照するよう更新が必要"
-echo "     (現在は \$CLAUDE_PROJECT_DIR/.claude/memory/ を参照)"
+echo "  グローバル AI 設定 ($GLOBAL_AI_DIR):"
+echo "    ├── hooks/bin -> フックバイナリ (symlink)"
+echo "    └── memory/events.jsonl -> グローバル記憶"
 echo ""
-echo "確認コマンド:"
-echo "  ls -la $GLOBAL_AI_DIR/"
-echo "  cat $GLOBAL_CLAUDE_DIR/settings.json"
+echo "  グローバル Claude 設定 ($GLOBAL_CLAUDE_DIR):"
+echo "    ├── settings.json ✨ (新規作成 or 上書き)"
+echo "    └── settings.json.backup.* (タイムスタンプ付き)"
+echo ""
+echo "💾 バックアップ:"
+if [ -d "$GLOBAL_CLAUDE_DIR" ]; then
+    BACKUP_COUNT=$(find "$GLOBAL_CLAUDE_DIR" -name "settings.json.backup.*" 2>/dev/null | wc -l)
+    if [ $BACKUP_COUNT -gt 0 ]; then
+        echo "    ✓ グローバル設定: $BACKUP_COUNT 個のバックアップを保存済み"
+    fi
+fi
+if [ -d "$MINIONS_DIR/.claude" ]; then
+    BACKUP_COUNT=$(find "$MINIONS_DIR/.claude" -name "settings.json.pre-global-backup.*" 2>/dev/null | wc -l)
+    if [ $BACKUP_COUNT -gt 0 ]; then
+        echo "    ✓ ローカル設定: $BACKUP_COUNT 個のバックアップを保存済み"
+    fi
+fi
+echo ""
+echo "⚙️  次のステップ:"
+echo ""
+echo "  1️⃣  minions/.claude/settings.json を確認"
+echo "    - グローバルフック設定との重複を削除"
+echo "    - プロジェクト固有のフックのみ残す"
+echo ""
+echo "  2️⃣  フック設定がグローバル記憶を参照するよう確認"
+echo "    - 現在: \$CLAUDE_PROJECT_DIR/.claude/memory/"
+echo "    - 推奨: \$HOME/.config/ai/memory/"
+echo ""
+echo "  3️⃣  動作確認:"
+echo ""
+echo "    # グローバル設定を確認"
+echo "    cat $GLOBAL_CLAUDE_DIR/settings.json"
+echo ""
+echo "    # グローバル記憶を確認"
+echo "    cat $GLOBAL_AI_DIR/memory/events.jsonl"
+echo ""
+echo "    # ディレクトリ構成を確認"
+echo "    ls -la $GLOBAL_AI_DIR/"
+echo ""
+echo "=========================================="

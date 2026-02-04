@@ -343,7 +343,46 @@ poe all         # 全チェック
 # Memory CLI
 uv run python -m minions.memory.cli list
 uv run python -m minions.memory.cli search "keyword"
+
+# Shell script tests (bats-core)
+bats tests/setup-global-config.bats  # セットアップスクリプトのテスト
 ```
+
+### Testing
+
+#### Python Tests (pytest)
+
+```bash
+# 全テスト実行
+uv run pytest -v
+
+# 特定のテストファイルのみ
+uv run pytest tests/test_memory.py -v
+
+# カバレッジ付き
+uv run pytest --cov=src --cov-report=term-missing
+```
+
+#### Shell Script Tests (bats-core)
+
+```bash
+# bats-core のインストール（初回のみ）
+brew install bats-core
+
+# セットアップスクリプトのテスト
+bats tests/setup-global-config.bats
+
+# 詳細出力
+bats --print-output-on-failure tests/setup-global-config.bats
+```
+
+テストカバレッジ:
+- ✅ ディレクトリ構造の作成
+- ✅ シンボリックリンクの作成と再作成
+- ✅ 記憶ファイルの移行
+- ✅ 設定ファイルの作成とバックアップ
+- ✅ エラーケース（ディレクトリ不在、バイナリ不在）
+- ✅ 複数回実行時の安全性
 
 ---
 
