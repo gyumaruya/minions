@@ -34,8 +34,26 @@ class CompactionWorker:
     """Worker for memory compaction and tier management."""
 
     def __init__(self, memory_dir: Path | None = None):
-        """Initialize compaction worker."""
-        self.memory_dir = memory_dir or Path.home() / "minions" / ".claude" / "memory"
+        """
+        Initialize compaction worker.
+
+        Args:
+            memory_dir: Memory directory (if None, auto-detect project root)
+        """
+        if memory_dir is None:
+            # Auto-detect project root
+            project_root = Path.cwd()
+            while project_root != project_root.parent:
+                if (project_root / ".git").exists() or (
+                    project_root / ".claude"
+                ).exists():
+                    break
+                project_root = project_root.parent
+            else:
+                project_root = Path.cwd()
+            memory_dir = project_root / ".claude" / "memory"
+
+        self.memory_dir = memory_dir
         self.events_file = self.memory_dir / "events.jsonl"
         self.sessions_dir = self.memory_dir / "sessions"
 

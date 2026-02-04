@@ -130,11 +130,45 @@ def extract_tool_summary(tool_name: str, tool_input: dict, tool_output: str) -> 
     return f"{tool_name} execution"
 
 
-def determine_success(tool_name: str, tool_output: str) -> bool:
-    """Determine if tool execution was successful."""
+def determine_success(
+    tool_name: str, tool_output: str, tool_input: dict = None
+) -> bool:
+    """
+    Determine if tool execution was successful.
+
+    Priority:
+    1. Exit code (if available in tool_input)
+    2. Explicit outcome field
+    3. Error indicators in output
+    """
+    # Priority 1: Exit code (if available)
+    if tool_input and "exit_code" in tool_input:
+        return tool_input["exit_code"] == 0
+
     output_lower = tool_output.lower()
 
-    # Common failure indicators
+    # Priority 2: Positive indicators (handle double negatives)
+    positive_indicators = [
+        "no error",
+        "no errors",
+        "success",
+        "passed",
+        "ok",
+        "completed",
+    ]
+
+    # If we see positive indicators, check if they're NOT negated
+    for indicator in positive_indicators:
+        if indicator in output_lower:
+            # Check for negation patterns nearby
+            idx = output_lower.find(indicator)
+            context_before = output_lower[max(0, idx - 20) : idx]
+            if not any(
+                neg in context_before for neg in ["not", "no", "n't", "without"]
+            ):
+                return True
+
+    # Priority 3: Error indicators (failure)
     failure_indicators = [
         "error:",
         "failed",
@@ -149,53 +183,75 @@ def determine_success(tool_name: str, tool_output: str) -> bool:
         if indicator in output_lower:
             return False
 
+    # Default: Assume success if no clear failure
     return True
 
 
-def infer_memory_type(
-    tool_name: str,
-    tool_input: dict,
-    tool_output: str,
-    success: bool,
-) -> str:
+def _is_user_correction(context: str, tool_input: dict) -> bool:
+    """Detect user correction patterns."""
+    import re
+
+    correction_patterns = [
+        r"にして",
+        r"に変えて",
+        r"は違う",
+        r"がいい",
+        r"いつも",
+        r"毎回",
+        r"覚えて[:：]",
+    ]
+
+    text = context + str(tool_input)
+    return any(re.search(p, text) for p in correction_patterns)
+
+
+def _is_design_decision(tool_name: str, tool_input: dict, context: str) -> bool:
     """
-    Infer appropriate memory type from tool execution context.
+    Detect design decisions (strict to reduce false positives).
 
-    Priority:
-    1. ERROR - Failed tool executions
-    2. DECISION - Design/architecture related tasks
-    3. WORKFLOW - Successful task sequences
-    4. OBSERVATION - Default for everything else
+    Returns True only for:
+    - Codex/Gemini consultations (non-trivial)
+    - Task tool with design-related keywords (multi-word phrases)
     """
-    from minions.memory import MemoryType
+    # Codex/Gemini consultations are likely decisions
+    if tool_name in ["codex", "gemini"]:
+        prompt = str(tool_input.get("prompt", ""))
+        # Exclude simple execution commands
+        if "exec" in prompt and len(prompt) < 50:
+            return False
+        return True
 
-    # Priority 1: ERROR - Failed executions
-    if not success:
-        return MemoryType.ERROR.value
-
-    # Priority 2: DECISION - Design/architecture tasks
+    # Task tool with design keywords
     if tool_name == "Task":
-        prompt = tool_input.get("prompt", "").lower()
-        decision_keywords = [
+        task_prompt = str(tool_input.get("prompt", "")).lower()
+
+        # Multi-word phrases to reduce false positives
+        decision_phrases = [
             "design",
             "architecture",
-            "decide",
-            "choice",
-            "approach",
-            "trade-off",
-            "codex",
-            "gemini",
+            "should we",
             "should i",
-            "which",
-            "better",
+            "which approach",
+            "trade-off",
+            "better than",
+            "choose between",
+            "how to implement",
         ]
-        if any(kw in prompt for kw in decision_keywords):
-            return MemoryType.DECISION.value
 
-    # Priority 3: WORKFLOW - Successful task sequences
+        # Require actual phrase match (not just "which")
+        return any(phrase in task_prompt for phrase in decision_phrases)
+
+    return False
+
+
+def _is_workflow_pattern(tool_name: str, tool_input: dict, success: bool) -> bool:
+    """Detect successful workflow patterns."""
+    if not success:
+        return False
+
     if tool_name == "Bash":
-        command = tool_input.get("command", "").lower()
-        workflow_patterns = [
+        command = str(tool_input.get("command", ""))
+        workflow_commands = [
             "ruff check",
             "ruff format",
             "ty check",
@@ -204,11 +260,77 @@ def infer_memory_type(
             "git push",
             "uv run",
         ]
-        if any(pattern in command for pattern in workflow_patterns):
-            return MemoryType.WORKFLOW.value
+        return any(cmd in command for cmd in workflow_commands)
 
-    # Default: OBSERVATION
-    return MemoryType.OBSERVATION.value
+    return False
+
+
+def infer_memory_type_with_confidence(
+    tool_name: str,
+    tool_input: dict,
+    tool_output: str,
+    success: bool,
+    context: str = "",
+) -> tuple[str, float]:
+    """
+    Infer memory type with confidence score.
+
+    Returns:
+        (memory_type, confidence): Memory type and confidence score (0.0-1.0)
+    """
+
+    scores = {
+        "preference": 0.0,
+        "workflow": 0.0,
+        "decision": 0.0,
+        "error": 0.0,
+        "observation": 0.5,  # Default baseline
+    }
+
+    # 1. Preference detection (user corrections)
+    if _is_user_correction(context, tool_input):
+        scores["preference"] = 0.9
+
+    # 2. Error detection (failures)
+    if not success:
+        scores["error"] = 0.95
+
+    # 3. Decision detection (design/architecture, strict)
+    if _is_design_decision(tool_name, tool_input, context):
+        scores["decision"] = 0.8
+
+    # 4. Workflow detection (successful patterns)
+    if _is_workflow_pattern(tool_name, tool_input, success):
+        scores["workflow"] = 0.7
+
+    # Select highest scoring type
+    memory_type = max(scores, key=scores.get)
+    confidence = scores[memory_type]
+
+    # Fallback to observation if confidence too low
+    if confidence < 0.6:
+        memory_type = "observation"
+        confidence = 0.5
+
+    return memory_type, confidence
+
+
+def infer_memory_type(
+    tool_name: str,
+    tool_input: dict,
+    tool_output: str,
+    success: bool,
+    context: str = "",
+) -> str:
+    """
+    Infer appropriate memory type from tool execution context.
+
+    Uses confidence-based scoring to reduce false positives.
+    """
+    memory_type, _ = infer_memory_type_with_confidence(
+        tool_name, tool_input, tool_output, success, context
+    )
+    return memory_type
 
 
 def _extract_error_context(tool_name: str, tool_input: dict) -> str:
@@ -259,7 +381,7 @@ def record_tool_result(
 ) -> bool:
     """Record tool result to memory."""
     try:
-        from minions.memory import AgentType, MemoryBroker, MemoryScope, MemoryType
+        from minions.memory import AgentType, MemoryBroker, MemoryScope
         from minions.memory.scoring import ScoringContext
 
         # Try to get API key from Keychain
@@ -274,11 +396,11 @@ def record_tool_result(
 
         # Extract summary
         summary = extract_tool_summary(tool_name, tool_input, tool_output)
-        success = determine_success(tool_name, tool_output)
+        success = determine_success(tool_name, tool_output, tool_input)
 
-        # Infer memory type
-        memory_type_value = infer_memory_type(
-            tool_name, tool_input, tool_output, success
+        # Infer memory type with confidence
+        memory_type_value, confidence = infer_memory_type_with_confidence(
+            tool_name, tool_input, tool_output, success, context=""
         )
 
         # Create scoring context
@@ -299,18 +421,24 @@ def record_tool_result(
 Error: {error_preview}
 
 Context: {_extract_error_context(tool_name, tool_input)}"""
-        elif memory_type_value == MemoryType.WORKFLOW.value:
+        elif memory_type_value == "workflow":
             # WORKFLOW type: Include successful pattern
             content = f"""[SUCCESS] Workflow: {tool_name}
 {summary}
 
 Pattern: {_extract_workflow_pattern(tool_name, tool_input)}"""
-        elif memory_type_value == MemoryType.DECISION.value:
+        elif memory_type_value == "decision":
             # DECISION type: Include decision context
             content = f"""[DECISION] Tool: {tool_name}
 {summary}
 
 Context: {_extract_decision_context(tool_input)}"""
+        elif memory_type_value == "preference":
+            # PREFERENCE type: User correction/preference
+            content = f"""[PREFERENCE] Tool: {tool_name}
+{summary}
+
+User feedback detected"""
         else:
             # OBSERVATION: Default format
             content = f"Tool: {tool_name}\n{summary}"
@@ -324,6 +452,7 @@ Context: {_extract_decision_context(tool_input)}"""
             "outcome": "success" if success else "failure",
             "execution_time_ms": execution_time_ms,
             "memory_type": memory_type_value,
+            "type_confidence": confidence,
         }
 
         # Add relevant input details (with redaction)
@@ -345,12 +474,14 @@ Context: {_extract_decision_context(tool_input)}"""
 
         # Determine scope based on memory type
         scope = MemoryScope.SESSION
-        if memory_type_value in (MemoryType.DECISION.value, MemoryType.WORKFLOW.value):
-            scope = MemoryScope.USER  # Decisions and workflows are user-scoped
+        if memory_type_value in ("decision", "workflow", "preference"):
+            scope = (
+                MemoryScope.USER
+            )  # Decisions, workflows, and preferences are user-scoped
 
         broker.add(
             content=content,
-            memory_type=MemoryType(memory_type_value),
+            memory_type=memory_type_value,
             scope=scope,
             source_agent=AgentType.CLAUDE,
             context=f"tool:{tool_name}",
