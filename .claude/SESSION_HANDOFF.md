@@ -6,193 +6,56 @@
 
 ## 現在の状況
 
-### 発見した問題
+### ✅ 完了した作業
 
-**enforce-delegation フックの階層認識が正しく動作していない**
+1. **SessionStart フックの実装と動作確認** ✅
+   - AGENT_ROLE=conductor が正しく設定される
+   - .conductor-session マーカーが作成される
+   - コミット済み: `2a6bba6`
 
-- メインセッションもサブエージェントも conductor として認識される
-- 結果：サブエージェントも連続作業でブロックされる
-- 原因：環境変数 `AGENT_ROLE` が設定されていない + TTY チェックが機能していない
-
-### 実施した作業
-
-1. ✅ **ロール判定順序の修正** (コミット 28adb24)
-   - 結果：問題が悪化（リバート済み: 1b8d8f6）
-
-2. ✅ **SessionStart フックの実装**
-   - ファイル作成: `hooks-rs/crates/hooks/session-start/`
-   - ビルド完了: `~/.config/ai/hooks/bin/session-start`
-   - グローバル設定に追加: `~/.claude/settings.json`
-   - **未コミット・未プッシュ**
-
-3. ⏳ **動作確認**
-   - SessionStart フックが実行されるか未確認
-   - AGENT_ROLE 環境変数が設定されるか未確認
+2. **enforce-delegation のロール判定順序を修正** ✅
+   - 問題: サブエージェントが親の AGENT_ROLE 環境変数を継承
+   - 解決: TTY チェックを最優先にしてロール判定順序を変更
+   - 動作確認済み: サブエージェント（musician）は制限なしで作業可能
+   - コミット済み: `6fa4e0c`
 
 ### 最新のコミット履歴
 
 ```
+6fa4e0c enforce-delegationのロール判定順序を修正（TTY優先）
+2a6bba6 SessionStartフックを実装 + 次セッション引き継ぎ情報追加
 1b8d8f6 Revert "enforce-delegationのロール判定順序を修正"
 28adb24 enforce-delegationのロール判定順序を修正 (リバート済み)
 351fa14 READMEから絵文字を削除
-bf1c334 READMEを更新: 設計哲学とグローバルセットアップを追記
 ```
 
-## 次のセッションで実施すること
+## 技術的な実装
 
-### 1. SessionStart フックの動作確認
+### SessionStart フック
 
-新しいセッションが開始されると、SessionStart フックが自動実行されます。
+**動作:**
+- セッション開始時に `AGENT_ROLE=conductor` を環境変数として設定
+- `.conductor-session` マーカーファイルを作成
+- サブエージェントには環境変数が継承されるが、TTY チェックで musician として認識
 
-**確認項目:**
+### enforce-delegation フック
 
-```bash
-# 1. AGENT_ROLE 環境変数が設定されているか
-echo "AGENT_ROLE: ${AGENT_ROLE:-未設定}"
-
-# 2. .conductor-session マーカーが作成されているか
-cat .claude/.conductor-session
-
-# 3. CLAUDE_ENV_FILE の内容確認（セッション開始直後のみ）
-# SessionStart フックで書き込まれたはず
-# ※ このファイルは一時的なので確認できない可能性あり
-```
-
-**期待される結果:**
-- `AGENT_ROLE=conductor` が設定されている
-- `.claude/.conductor-session` が更新されている
-
-### 2. enforce-delegation の動作確認
-
-SessionStart フックで環境変数が設定されていれば、enforce-delegation が正しく動作するはず。
-
-**確認手順:**
-
-```bash
-# メインセッションでのロール確認
-# 何か作業ツールを使用すると、カウンターが表示されるはず
-ls /tmp/  # これだけではカウントされない
-
-# 実際に Write/Edit などを使うと:
-# 💡 委譲推奨: Task ツールで musician へ委譲できます。（1/5）
-# のようなメッセージが表示されるはず
-```
-
-### 3. サブエージェント内での環境変数確認
-
-Task ツールでサブエージェントを spawn し、環境変数を確認：
-
-```bash
-# Task ツールで以下を実行
-echo "=== サブエージェント環境変数 ==="
-echo "AGENT_ROLE: ${AGENT_ROLE:-未設定}"
-echo "CLAUDE_SUBAGENT: ${CLAUDE_SUBAGENT:-未設定}"
-tty 2>&1 || echo "TTY なし"
-
-# enforce-delegation のロール判定テスト
-echo '{"tool_name":"Write","tool_input":{"file_path":"/tmp/test.txt"}}' | \
-  ~/.config/ai/hooks/bin/enforce-delegation 2>&1
-```
-
-**期待される動作:**
-
-- **メインセッション**: `AGENT_ROLE=conductor` → カウンターが動作
-- **サブエージェント**:
-  - `AGENT_ROLE` 未設定（継承されない）
-  - TTY なし → `is_subagent()` が true → musician として認識
-  - カウンターなし（制限なし）
-
-### 4. 問題が解決していない場合
-
-もし SessionStart フックで問題が解決しない場合は、**プロンプトベースの検出**を実装する必要があります。
-
-**代替案: Task プロンプト内の `Role: musician` を検出**
-
-```rust
-// enforce-delegation/src/main.rs の get_role() 関数に追加
-fn get_role() -> String {
-    // 1. AGENT_ROLE 環境変数
-    if let Ok(role) = std::env::var("AGENT_ROLE") { ... }
-
-    // 1.5. Hook input から Task プロンプトを確認（新規追加）
-    // ※ この実装には hook-common の拡張が必要
-
-    // 2. is_subagent() (TTY チェック)
-    if is_subagent() { ... }
-
-    // 3. is_conductor_session() (マーカー)
-    if is_conductor_session() { ... }
-
-    // 4. デフォルト: musician
-    "musician".to_string()
-}
-```
-
-### 5. SessionStart フックのコミット・プッシュ
-
-動作確認後、以下をコミット：
-
-```bash
-git add hooks-rs/crates/hooks/session-start/
-git add hooks-rs/Cargo.toml
-
-git commit -m "SessionStartフックを実装
-
-AGENT_ROLE=conductor を環境変数として設定し、
-メインセッションを conductor として識別できるようにする。
-
-- CLAUDE_ENV_FILE に export AGENT_ROLE=conductor を書き込み
-- .conductor-session マーカーファイルを作成
-- サブエージェントは環境変数未設定 + TTY なし → musician として識別
-
-Co-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>"
-
-git push
-```
-
-## 技術的な背景
-
-### SessionStart フックの仕組み
-
-Claude Code は SessionStart フックに `CLAUDE_ENV_FILE` 環境変数を提供します。このファイルに `export VAR=value` を書き込むと、以降の Bash コマンドで環境変数が利用可能になります。
-
-**session-start フックの動作:**
-
-```rust
-// CLAUDE_ENV_FILE を取得
-let env_file = env::var("CLAUDE_ENV_FILE")?;
-
-// export 文を追加
-writeln!(file, "export AGENT_ROLE=conductor")?;
-
-// マーカーファイルを作成
-let marker_path = format!("{}/.claude/.conductor-session", project_dir);
-```
-
-### 環境変数の継承について
-
-**重要な前提:**
-- SessionStart フックで設定した環境変数は**同じセッション内の Bash コマンド**に継承される
-- Task ツールで spawn されるサブエージェントは**別のセッション**として起動される
-- そのため、サブエージェント内では `AGENT_ROLE` が未設定になるはず
-- サブエージェントは TTY がないため、`is_subagent()` が true を返し、musician として識別される
-
-### 現在の enforce-delegation ロジック
+**ロール判定順序（修正後）:**
 
 ```rust
 fn get_role() -> String {
-    // 1. AGENT_ROLE 環境変数（明示的）
-    if let Ok(role) = std::env::var("AGENT_ROLE") {
-        return role.to_lowercase();
-    }
-
-    // 2. サブエージェント判定（TTY チェック）
+    // 1. TTY チェック（最優先）
     if is_subagent() {  // TTY なし → true
         return "musician".to_string();
     }
 
+    // 2. AGENT_ROLE 環境変数
+    if let Ok(role) = std::env::var("AGENT_ROLE") {
+        return role.to_lowercase();
+    }
+
     // 3. Conductor マーカー
-    if is_conductor_session() {  // .conductor-session 存在 → true
+    if is_conductor_session() {
         return "conductor".to_string();
     }
 
@@ -201,14 +64,53 @@ fn get_role() -> String {
 }
 ```
 
+**動作確認結果:**
+
+| 環境 | AGENT_ROLE | TTY | 判定結果 |
+|------|-----------|-----|---------|
+| メインセッション | conductor | あり | conductor ✓ |
+| サブエージェント | conductor（継承） | なし | musician ✓ |
+
+### カウンターの動作
+
+- **保存場所**: `/tmp/claude-delegation-{project_hash}-{role}.json`
+- **動作**:
+  - Conductor: 連続5回の作業ツール使用でブロック
+  - Musician: 制限なし
+- **リセット条件**:
+  - Task ツールで委譲
+  - 10分間作業なし
+
+## 次のセッションで実施すること
+
+### 1. PR #16 のレビュー準備
+
+現在、PR #16 はドラフト状態です。以下を確認してレビュー準備を整えてください:
+
+- [ ] すべての変更が意図通りに動作するか確認
+- [ ] テストが pass するか確認
+- [ ] ドキュメントが更新されているか確認
+- [ ] Draft 解除: `gh pr ready`
+
+### 2. マージ後のクリーンアップ
+
+PR がマージされたら:
+
+```bash
+git checkout main
+git pull origin main
+git branch -d feature/session-acbd816
+```
+
 ## 参考ドキュメント
 
 - `.claude/docs/GLOBAL_CONFIG_DESIGN.md` - グローバル設定の設計
 - `.claude/rules/agent-hierarchy.md` - エージェント階層のルール
 - `hooks-rs/crates/hooks/enforce-delegation/src/main.rs` - 委譲強制フックの実装
+- `hooks-rs/crates/hooks/session-start/src/main.rs` - SessionStart フックの実装
 
 ## 連絡事項
 
 - PR #16 は Draft のまま維持
-- SessionStart フックの動作確認が完了するまでマージしない
-- 問題が解決しない場合は、プロンプトベースの検出を検討
+- レビュー準備が整ったら Draft 解除してマージ
+- 問題が発見された場合は、このブランチで修正を続行
