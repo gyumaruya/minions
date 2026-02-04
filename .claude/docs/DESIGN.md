@@ -150,6 +150,7 @@ Resolution order: Project overrides Global; tool-specific configs read from `.ai
 | Add a migration tool that replays JSONL into a new schema and rebuilds derived indexes | Deterministic upgrades without data loss | In-place mutation of JSONL | 2026-02-03 |
 | Fail when no stable base directory exists (HOME missing) and avoid relative fallbacks; resolve memory path in order: AI_MEMORY_PATH → OS config dir (XDG) → error | Predictable paths and explicit failure over cwd-dependent behavior | Relative fallback, implicit cwd usage | 2026-02-04 |
 | Make default_path return Result<Utf8PathBuf, Error> to surface missing base dir and allow callers to handle | Avoid silent fallbacks and simplify error reporting | Always returning a path with fallback | 2026-02-04 |
+| Introduce PermissionRequest auto-approval triage (denylist/allowlist/LLM fallback) with fail-closed timeouts and no-shell execution | Reduce approval friction while keeping destructive commands blocked and uncertain cases explicit | Manual-only approvals, regex-only allow/deny without fallback | 2026-02-04 |
 
 ## TODO
 
@@ -178,6 +179,9 @@ Resolution order: Project overrides Global; tool-specific configs read from `.ai
 - [ ] Define Hook Capability manifest (supported hooks, tool versions, schema range)
 - [ ] Implement migration tool (replay + rebuild) with dry-run and audit report
 - [ ] Add schema_version field to memory events and hook I/O contracts
+- [ ] Define command normalization/parsing for PermissionRequest classifier (argv-based, not raw string only)
+- [ ] Add adversarial test corpus for command obfuscation (shell expansion, separators, encoded payloads)
+- [ ] Add timeout/circuit-breaker policy for LLM fallback in approval hooks
 
 ## Open Questions
 
@@ -191,6 +195,7 @@ Resolution order: Project overrides Global; tool-specific configs read from `.ai
 - [ ] How should cross-tool identity be mapped (user/agent IDs) without leaking tool-specific identifiers?
 - [ ] Do we need a global/local split at all, or is a single per-project JSONL log sufficient?
 - [ ] Is hook versioning via manifest.json necessary, or can we rely on the hook binary itself (or none)?
+- [ ] Should ambiguous PermissionRequest default to deny, or user-prompt fallback, when LLM call fails?
 
 ## Changelog
 
@@ -209,3 +214,4 @@ Resolution order: Project overrides Global; tool-specific configs read from `.ai
 | 2026-02-03 | Added layered config/memory system design (global + project separation, tool shims, fallback resolution) |
 | 2026-02-03 | Added open questions about simplifying global/local memory and hook versioning |
 | 2026-02-04 | Added decision to avoid relative fallbacks when HOME is missing and to return Result for default_path |
+| 2026-02-04 | Recorded PermissionRequest auto-approval triage direction and follow-up TODO/Open Question items |
