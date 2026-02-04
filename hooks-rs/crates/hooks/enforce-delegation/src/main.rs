@@ -185,17 +185,18 @@ fn main() -> Result<()> {
 }
 
 fn get_role() -> String {
-    // 1. Check environment variable first (explicit override)
+    // 1. PRIORITY: Check if we're a subagent first (TTY check)
+    // This prevents inheriting AGENT_ROLE from parent
+    if is_subagent() {
+        return "musician".to_string();
+    }
+
+    // 2. Check environment variable (explicit override for main session)
     if let Ok(role) = std::env::var("AGENT_ROLE") {
         let role_lower = role.to_lowercase();
         if role_lower == "conductor" || role_lower == "musician" {
             return role_lower;
         }
-    }
-
-    // 2. Check if we're a subagent by looking at parent process
-    if is_subagent() {
-        return "musician".to_string();
     }
 
     // 3. Check conductor-session marker for main session
