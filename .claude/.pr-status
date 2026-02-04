@@ -1,7 +1,7 @@
 {
   "action": "existing",
-  "pr_number": 11,
-  "branch": "feature/session-xkpqrurrxunk",
-  "url": "https://github.com/gyumaruya/minions/pull/11",
-  "message": "📋 既存のPR #11 を使用（ブックマーク同期済み）: https://github.com/gyumaruya/minions/pull/11"
+  "pr_number": 16,
+  "branch": "feature/session-acbd816",
+  "url": "https://github.com/gyumaruya/minions/pull/16",
+  "message": "PR #16 を使用中（グローバル記憶・フックシステムの実装）: https://github.com/gyumaruya/minions/pull/16"
 }
