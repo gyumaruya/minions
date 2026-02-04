@@ -41,6 +41,7 @@ class OpenAIEmbedding(EmbeddingProvider):
 
         try:
             from openai import OpenAI
+
             self.client = OpenAI()
         except ImportError as e:
             raise ImportError("openai package required: uv add openai") from e
@@ -72,6 +73,7 @@ class HuggingFaceEmbedding(EmbeddingProvider):
 
         try:
             from sentence_transformers import SentenceTransformer
+
             self.model = SentenceTransformer(model)
             self._dimension = self.model.get_sentence_embedding_dimension()
         except ImportError as e:
@@ -106,6 +108,7 @@ class OllamaEmbedding(EmbeddingProvider):
 
         try:
             import httpx
+
             self.client = httpx.Client(base_url=host, timeout=30.0)
         except ImportError as e:
             raise ImportError("httpx required: uv add httpx") from e

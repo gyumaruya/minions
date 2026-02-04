@@ -1,0 +1,1 @@
+/Users/takuya/minions/resources/hooks-rs/target/release/libhook_memory.rlib: /Users/takuya/minions/resources/hooks-rs/crates/hook-memory/src/lib.rs /Users/takuya/minions/resources/hooks-rs/crates/hook-memory/src/schema.rs /Users/takuya/minions/resources/hooks-rs/crates/hook-memory/src/storage.rs
