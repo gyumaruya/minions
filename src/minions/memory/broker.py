@@ -34,6 +34,32 @@ class MemoryBroker:
     Manages both JSONL persistence and optional mem0 vector indexing.
     """
 
+    @staticmethod
+    def _get_default_memory_dir() -> Path:
+        """
+        Get default memory directory.
+
+        Priority:
+        1. AI_MEMORY_PATH environment variable (if set, use parent directory)
+        2. ~/.config/ai/memory (macOS/Linux standard)
+
+        Returns:
+            Path: Memory directory path
+        """
+        import os
+
+        # Priority 1: Allow override via environment variable
+        if custom_path := os.environ.get("AI_MEMORY_PATH"):
+            # If AI_MEMORY_PATH points to events.jsonl, use parent directory
+            custom = Path(custom_path)
+            if custom.name == "events.jsonl":
+                return custom.parent
+            return custom
+
+        # Priority 2: Use OS config directory
+        config_home = Path.home() / ".config"
+        return config_home / "ai" / "memory"
+
     def __init__(
         self,
         base_dir: Path | None = None,
@@ -48,7 +74,7 @@ class MemoryBroker:
             enable_mem0: Enable mem0 vector indexing
             mem0_config: Configuration for mem0 (LLM, embedder, vector store)
         """
-        self.base_dir = base_dir or Path.home() / "minions" / ".claude" / "memory"
+        self.base_dir = base_dir or self._get_default_memory_dir()
         self.base_dir.mkdir(parents=True, exist_ok=True)
 
         # JSONL files (source of truth)
@@ -167,25 +193,24 @@ class MemoryBroker:
         # Prepare metadata with importance score
         final_metadata = metadata.copy() if metadata else {}
 
-        # Calculate importance score if scoring context provided
-        if scoring_context is not None:
-            from minions.memory.scoring import (
-                calculate_importance_score,
-            )
+        # Calculate importance score (always calculate, even without context)
+        from minions.memory.scoring import (
+            calculate_importance_score,
+        )
 
-            # Create temporary event for scoring
-            temp_event = MemoryEvent(
-                content=content,
-                memory_type=memory_type,
-                scope=scope,
-                source_agent=source_agent,
-                context=context,
-                confidence=confidence,
-                tags=tags or [],
-                metadata=final_metadata,
-            )
-            importance = calculate_importance_score(temp_event, scoring_context)
-            final_metadata["importance_score"] = importance
+        # Create temporary event for scoring
+        temp_event = MemoryEvent(
+            content=content,
+            memory_type=memory_type,
+            scope=scope,
+            source_agent=source_agent,
+            context=context,
+            confidence=confidence,
+            tags=tags or [],
+            metadata=final_metadata,
+        )
+        importance = calculate_importance_score(temp_event, scoring_context)
+        final_metadata["importance_score"] = importance
 
         event = MemoryEvent(
             content=content,

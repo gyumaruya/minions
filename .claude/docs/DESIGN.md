@@ -151,6 +151,17 @@ Resolution order: Project overrides Global; tool-specific configs read from `.ai
 | Fail when no stable base directory exists (HOME missing) and avoid relative fallbacks; resolve memory path in order: AI_MEMORY_PATH → OS config dir (XDG) → error | Predictable paths and explicit failure over cwd-dependent behavior | Relative fallback, implicit cwd usage | 2026-02-04 |
 | Make default_path return Result<Utf8PathBuf, Error> to surface missing base dir and allow callers to handle | Avoid silent fallbacks and simplify error reporting | Always returning a path with fallback | 2026-02-04 |
 | Introduce PermissionRequest auto-approval triage (denylist/allowlist/LLM fallback) with fail-closed timeouts and no-shell execution | Reduce approval friction while keeping destructive commands blocked and uncertain cases explicit | Manual-only approvals, regex-only allow/deny without fallback | 2026-02-04 |
+| Adopt 3-tier memory routing (Global + Project + Session) with strict promotion gates | Minimizes cross-project contamination while preserving durable user-level learning and session-local experimentation | Global-only, Global+Project only | 2026-02-04 |
+| Store tool outcomes and error resolutions as structured episodes (task, tool, inputs hash, outcome, fix, confidence) and derive reusable patterns from repeated episodes | Improves learnability from failures/successes and supports reliable retrieval beyond free-text logs | Raw transcript-only learning | 2026-02-04 |
+| Use retrieval budget policy (top-k per scope + diversity constraints + hard token budget per memory class) | Prevents context pollution under large context windows while maintaining high-signal recall | Recency-only retrieval, unconstrained semantic top-k | 2026-02-04 |
+
+### Memory Learning Strategy (2026-02-04)
+
+- Record memory at event boundaries (`PreToolUse`, `PostToolUse`, `PostAssistantResponse`, `SessionEnd`) with typed payloads and explicit evidence links.
+- Keep Session memory ephemeral/high-volume, Project memory task-pattern focused, and Global memory preference/policy focused.
+- Promote memories upward only when confidence and reuse thresholds are met (e.g., repeated success across tasks/projects).
+- Track negative knowledge explicitly (`anti_patterns`, failed fixes, invalid assumptions) with decay and re-validation.
+- Evaluate memory quality using outcome metrics (success rate lift, fewer retries, fewer user corrections, lower tool-call count).
 
 ## TODO
 
@@ -215,3 +226,4 @@ Resolution order: Project overrides Global; tool-specific configs read from `.ai
 | 2026-02-03 | Added open questions about simplifying global/local memory and hook versioning |
 | 2026-02-04 | Added decision to avoid relative fallbacks when HOME is missing and to return Result for default_path |
 | 2026-02-04 | Recorded PermissionRequest auto-approval triage direction and follow-up TODO/Open Question items |
+| 2026-02-04 | Added memory architecture recommendation (3-tier routing), structured episode learning, and retrieval budget policy |

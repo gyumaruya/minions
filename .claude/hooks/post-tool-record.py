@@ -113,6 +113,105 @@ def determine_success(tool_name: str, tool_output: str) -> bool:
     return True
 
 
+def infer_memory_type(
+    tool_name: str,
+    tool_input: dict,
+    tool_output: str,
+    success: bool,
+) -> str:
+    """
+    Infer appropriate memory type from tool execution context.
+
+    Priority:
+    1. ERROR - Failed tool executions
+    2. DECISION - Design/architecture related tasks
+    3. WORKFLOW - Successful task sequences
+    4. OBSERVATION - Default for everything else
+    """
+    from minions.memory import MemoryType
+
+    # Priority 1: ERROR - Failed executions
+    if not success:
+        return MemoryType.ERROR.value
+
+    # Priority 2: DECISION - Design/architecture tasks
+    if tool_name == "Task":
+        prompt = tool_input.get("prompt", "").lower()
+        decision_keywords = [
+            "design",
+            "architecture",
+            "decide",
+            "choice",
+            "approach",
+            "trade-off",
+            "codex",
+            "gemini",
+            "should i",
+            "which",
+            "better",
+        ]
+        if any(kw in prompt for kw in decision_keywords):
+            return MemoryType.DECISION.value
+
+    # Priority 3: WORKFLOW - Successful task sequences
+    if tool_name == "Bash":
+        command = tool_input.get("command", "").lower()
+        workflow_patterns = [
+            "ruff check",
+            "ruff format",
+            "ty check",
+            "pytest",
+            "git commit",
+            "git push",
+            "uv run",
+        ]
+        if any(pattern in command for pattern in workflow_patterns):
+            return MemoryType.WORKFLOW.value
+
+    # Default: OBSERVATION
+    return MemoryType.OBSERVATION.value
+
+
+def _extract_error_context(tool_name: str, tool_input: dict) -> str:
+    """Extract context information for error memories."""
+    if tool_name == "Bash":
+        command = tool_input.get("command", "")
+        # Get first line of command
+        first_line = command.split("\n")[0]
+        return f"Command: {first_line}"
+    elif tool_name in ("Edit", "Write"):
+        file_path = tool_input.get("file_path", "")
+        return f"File: {file_path}"
+    return f"Tool: {tool_name}"
+
+
+def _extract_workflow_pattern(tool_name: str, tool_input: dict) -> str:
+    """Extract workflow pattern for successful sequences."""
+    if tool_name == "Bash":
+        command = tool_input.get("command", "")
+        # Identify the pattern
+        if "ruff check" in command and "ruff format" in command:
+            return "Lint + Format"
+        elif "pytest" in command:
+            return "Test execution"
+        elif "git commit" in command:
+            return "Git commit"
+        elif "uv run" in command:
+            return "UV command execution"
+        return "Bash command"
+    return f"{tool_name} execution"
+
+
+def _extract_decision_context(tool_input: dict) -> str:
+    """Extract decision context from Task tool input."""
+    prompt = tool_input.get("prompt", "")
+    # Get first 150 characters
+    preview = prompt[:150]
+    if len(prompt) > 150:
+        preview += "..."
+    return preview
+
+
 def record_tool_result(
     tool_name: str,
     tool_input: dict,
@@ -138,6 +237,11 @@ def record_tool_result(
         summary = extract_tool_summary(tool_name, tool_input, tool_output)
         success = determine_success(tool_name, tool_output)
 
+        # Infer memory type
+        memory_type_value = infer_memory_type(
+            tool_name, tool_input, tool_output, success
+        )
+
         # Create scoring context
         scoring_ctx = ScoringContext(
             tool_name=tool_name,
@@ -146,18 +250,38 @@ def record_tool_result(
             session_id=os.environ.get("CLAUDE_SESSION_ID"),
         )
 
-        # Build content
-        content = f"Tool: {tool_name}\n{summary}"
+        # Build content with structured information
         if not success:
-            # Include error details for failures
-            error_preview = truncate_content(tool_output, 200)
-            content = f"[FAILURE] {content}\nError: {error_preview}"
+            # ERROR type: Include detailed failure information
+            error_preview = truncate_content(tool_output, 300)
+            content = f"""[FAILURE] Tool: {tool_name}
+{summary}
+
+Error: {error_preview}
+
+Context: {_extract_error_context(tool_name, tool_input)}"""
+        elif memory_type_value == MemoryType.WORKFLOW.value:
+            # WORKFLOW type: Include successful pattern
+            content = f"""[SUCCESS] Workflow: {tool_name}
+{summary}
+
+Pattern: {_extract_workflow_pattern(tool_name, tool_input)}"""
+        elif memory_type_value == MemoryType.DECISION.value:
+            # DECISION type: Include decision context
+            content = f"""[DECISION] Tool: {tool_name}
+{summary}
+
+Context: {_extract_decision_context(tool_input)}"""
+        else:
+            # OBSERVATION: Default format
+            content = f"Tool: {tool_name}\n{summary}"
 
         # Build metadata
         metadata = {
             "tool_name": tool_name,
             "outcome": "success" if success else "failure",
             "execution_time_ms": execution_time_ms,
+            "memory_type": memory_type_value,
         }
 
         # Add relevant input details
@@ -165,11 +289,18 @@ def record_tool_result(
             metadata["command"] = truncate_content(tool_input.get("command", ""), 200)
         elif tool_name in ("Edit", "Write"):
             metadata["file_path"] = tool_input.get("file_path", "")
+        elif tool_name == "Task":
+            metadata["subagent_type"] = tool_input.get("subagent_type", "unknown")
+
+        # Determine scope based on memory type
+        scope = MemoryScope.SESSION
+        if memory_type_value in (MemoryType.DECISION.value, MemoryType.WORKFLOW.value):
+            scope = MemoryScope.USER  # Decisions and workflows are user-scoped
 
         broker.add(
             content=content,
-            memory_type=MemoryType.OBSERVATION,
-            scope=MemoryScope.SESSION,
+            memory_type=MemoryType(memory_type_value),
+            scope=scope,
             source_agent=AgentType.CLAUDE,
             context=f"tool:{tool_name}",
             metadata=metadata,
@@ -225,5 +356,4 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    pass
-#     main()
+    main()

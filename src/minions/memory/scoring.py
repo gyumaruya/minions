@@ -97,6 +97,20 @@ class ScoringContext:
     metadata: dict[str, Any] | None = None
 
 
+# Memory type base weights for importance scoring
+# These represent inherent importance of each memory type
+MEMORY_TYPE_BASE_WEIGHTS = {
+    "preference": 0.9,  # High - Directly impacts behavior
+    "workflow": 0.8,  # High - Repeated patterns
+    "decision": 0.85,  # High - Architecture choices
+    "error": 0.7,  # Medium - Context-dependent learning
+    "observation": 0.5,  # Low - Routine actions
+    "research": 0.75,  # Medium-High - Investigation results
+    "plan": 0.8,  # High - Strategic planning
+    "artifact": 0.7,  # Medium - Concrete outputs
+}
+
+
 class ScoringEngine:
     """Engine for calculating importance and recall scores."""
 
@@ -127,6 +141,10 @@ class ScoringEngine:
         ctx = context or ScoringContext()
         w = self.importance_weights
 
+        # Start with memory type base weight
+        memory_type = event.memory_type.value
+        base_weight = MEMORY_TYPE_BASE_WEIGHTS.get(memory_type, 0.5)
+
         # Calculate individual components
         outcome_score = self._calculate_outcome_score(event, ctx)
         reuse_score = self._calculate_reuse_score(event, ctx)
@@ -135,8 +153,8 @@ class ScoringEngine:
         user_signal_score = self._calculate_user_signal_score(event, ctx)
         cost_reduction_score = self._calculate_cost_reduction_score(event, ctx)
 
-        # Weighted sum
-        score = (
+        # Combine base weight (40%) with dynamic factors (60%)
+        score = 0.4 * base_weight + 0.6 * (
             w.outcome * outcome_score
             + w.reuse * reuse_score
             + w.cross_impact * cross_impact_score
@@ -203,21 +221,24 @@ class ScoringEngine:
     def _calculate_outcome_score(
         self, event: MemoryEvent, ctx: ScoringContext
     ) -> float:
-        """Score based on outcome (success/failure)."""
+        """Score based on outcome (success/failure).
+
+        Failures are MORE important for learning (avoid repeating mistakes).
+        """
         # Check metadata for outcome
         outcome = event.metadata.get("outcome", "unknown")
 
-        if outcome == "success":
+        # Failures are MORE important for learning
+        if outcome == "failure":
             return 1.0
-        elif outcome == "failure":
-            # Failures are valuable for learning
+        elif outcome == "success":
             return 0.8
         elif outcome == "partial":
-            return 0.6
+            return 0.7
         else:
             # Default based on context
             if ctx.tool_success:
-                return 0.7
+                return 0.6
             return 0.5
 
     def _calculate_reuse_score(self, event: MemoryEvent, ctx: ScoringContext) -> float:
@@ -415,6 +436,20 @@ class ScoringEngine:
             score += 0.05
 
         return score
+
+
+# Memory type base weights for importance scoring
+# These represent inherent importance of each memory type
+MEMORY_TYPE_BASE_WEIGHTS = {
+    "preference": 0.9,  # High - Directly impacts behavior
+    "workflow": 0.8,  # High - Repeated patterns
+    "decision": 0.85,  # High - Architecture choices
+    "error": 0.7,  # Medium - Context-dependent learning
+    "observation": 0.5,  # Low - Routine actions
+    "research": 0.75,  # Medium-High - Investigation results
+    "plan": 0.8,  # High - Strategic planning
+    "artifact": 0.7,  # Medium - Concrete outputs
+}
 
 
 # Global engine instance
