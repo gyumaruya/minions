@@ -6,13 +6,13 @@
 
 | Rule | Enforcement |
 |------|-------------|
-| **セッション開始時に自動 PR 作成** | `auto-create-pr.py` フック |
-| **PR は必ず draft で作成** | `enforce-draft-pr.py` フック (BLOCK) |
-| **PR なしでの編集禁止** | `ensure-pr-open.py` フック (BLOCK) |
-| **マージ操作禁止** | `enforce-no-merge.py` フック (BLOCK) |
+| **セッション開始時に自動 PR 作成** | `auto-create-pr` フック (Rust) |
+| **PR は必ず draft で作成** | `enforce-draft-pr` フック (BLOCK) |
+| **PR なしでの編集禁止** | `ensure-pr-open` フック (BLOCK) |
+| **マージ操作禁止** | `enforce-no-merge` フック (BLOCK) |
 | **main への直接プッシュ禁止** | Feature Branch → PR → Merge |
 | **マージ済みブランチに再プッシュ禁止** | 新規ブランチ・新規 PR を作成 |
-| **シークレットのコミット禁止** | `prevent-secrets-commit.py` フック (BLOCK) |
+| **シークレットのコミット禁止** | `prevent-secrets-commit` フック (BLOCK) |
 
 ## 自動 PR 作成 & クリーンアップ (Session Start)
 

@@ -30,6 +30,49 @@ Memory is stored as an append-only JSONL event log (canonical), plus derived art
 
 Self-improvement uses a policy feedback loop: retrieval outcomes and task results update scoring weights and retrieval thresholds per role (Conductor/Musician) and per scope. Updates are stored as versioned policy records in the JSONL log and applied on subsequent sessions via SessionStart hook.
 
+### Layered Config/Memory System (Global + Project)
+
+Introduce a lightweight, layered configuration/memory architecture that separates stable user memory from volatile tool-specific configs. The system favors simple file structures and symlinks, supports graceful degradation when tools evolve, and allows both global and per-project overrides without heavy dependencies.
+
+**Design Proposal (Codex):**
+```
+Global (stable, shared)
+  ~/.ai/
+    memory/          # user preferences, workflows, learnings (tool-agnostic)
+    policies/        # stable rules/guardrails (tool-agnostic)
+    profiles/        # optional role/persona presets
+    tools/           # tool shims + compatibility mappings
+
+Project (scoped, override)
+  .ai/
+    memory/          # project-specific learnings
+    policies/        # project guardrails
+    tools/           # tool-specific overrides for this repo
+```
+
+**Implemented (2026-02-04):**
+```
+Global (XDG Base Directory compliant)
+  ~/.config/ai/
+    hooks/bin/       # symlink to minions/hooks-rs/target/release
+    memory/          # events.jsonl (global memory)
+
+  ~/.claude/
+    settings.json    # global hooks definition (23 hooks)
+
+Project (minimal override)
+  <project>/.claude/
+    settings.json    # project-specific env/overrides only
+```
+
+**Key Differences:**
+- Used `~/.config/ai/` instead of `~/.ai/` (XDG compliance)
+- Simplified to memory + hooks only (no policies/profiles/tools yet)
+- Hooks managed via `~/.claude/settings.json` (Claude Code native)
+- Phase 1: Global memory only; local memory TBD
+
+Resolution order: Project overrides Global; tool-specific configs read from `.ai/tools/<tool>/` then fallback to `~/.ai/tools/<tool>/` and finally to tool defaults. Stable memory remains tool-agnostic and is referenced by tools via simple adapters.
+
 ## Implementation Plan
 
 ### Patterns & Approaches
@@ -99,6 +142,14 @@ Self-improvement uses a policy feedback loop: retrieval outcomes and task result
 | Normalize JSON in parity tests (sorted keys, filtered volatile fields) | Prevents flaky diffs while preserving behavior | Raw text compare only | 2026-02-02 |
 | Use per-hook fixture folders with case metadata + stdin.json + expected.json | Keeps fixtures readable and supports re-recording | Ad-hoc file naming | 2026-02-02 |
 | Prefer differential tests (Python vs Rust) + snapshots for stdout/stderr | Strong parity guarantee plus readable diffs | Snapshot-only or unit-only | 2026-02-02 |
+| Separate stable memory/policies from tool-specific configs using a layered file structure (Global + Project) | Persist user learnings while allowing tools to evolve without breaking memory | Monolithic per-tool configs, single global file | 2026-02-03 |
+| Use simple fallback resolution and symlink-friendly paths for tool configs | Minimal footprint and graceful degradation when tools change | Centralized config service, database-backed configs | 2026-02-03 |
+| Keep tool adaptation in small shims/mappings under `tools/` | Isolates volatility and simplifies migration | Embedding tool rules into memory layer | 2026-02-03 |
+| Introduce explicit Tool Adapter + Hook Capability layer with versioned contracts | Decouple fast-changing CLIs from stable memory/storage and allow graceful fallback | Hardcode hook behavior per tool | 2026-02-03 |
+| Version memory schema and hook I/O with semver and per-event schema_version fields | Enables forward/backward compatibility and safe migrations | Implicit schema evolution | 2026-02-03 |
+| Add a migration tool that replays JSONL into a new schema and rebuilds derived indexes | Deterministic upgrades without data loss | In-place mutation of JSONL | 2026-02-03 |
+| Fail when no stable base directory exists (HOME missing) and avoid relative fallbacks; resolve memory path in order: AI_MEMORY_PATH → OS config dir (XDG) → error | Predictable paths and explicit failure over cwd-dependent behavior | Relative fallback, implicit cwd usage | 2026-02-04 |
+| Make default_path return Result<Utf8PathBuf, Error> to surface missing base dir and allow callers to handle | Avoid silent fallbacks and simplify error reporting | Always returning a path with fallback | 2026-02-04 |
 
 ## TODO
 
@@ -123,6 +174,10 @@ Self-improvement uses a policy feedback loop: retrieval outcomes and task result
 - [ ] Define Memory Broker IPC boundary for non-Python hooks (stdin/stdout or local socket)
 - [ ] Define JSON normalization rules (volatile field filters, ordering) for parity tests
 - [ ] Create fixture format spec (case metadata, stdin.json, expected.json, notes)
+- [ ] Define Tool Adapter interface (capabilities, events, routing rules, fallbacks)
+- [ ] Define Hook Capability manifest (supported hooks, tool versions, schema range)
+- [ ] Implement migration tool (replay + rebuild) with dry-run and audit report
+- [ ] Add schema_version field to memory events and hook I/O contracts
 
 ## Open Questions
 
@@ -133,6 +188,9 @@ Self-improvement uses a policy feedback loop: retrieval outcomes and task result
 - [ ] How aggressively should negative/failed attempts be retained vs. summarized?
 - [ ] Should per-agent private memories be allowed to auto-share after cooldown?
 - [ ] Which outcome signals best predict beneficial memories (time saved, fewer tool calls, fewer errors)?
+- [ ] How should cross-tool identity be mapped (user/agent IDs) without leaking tool-specific identifiers?
+- [ ] Do we need a global/local split at all, or is a single per-project JSONL log sufficient?
+- [ ] Is hook versioning via manifest.json necessary, or can we rely on the hook binary itself (or none)?
 
 ## Changelog
 
@@ -148,3 +206,6 @@ Self-improvement uses a policy feedback loop: retrieval outcomes and task result
 | 2026-02-02 | Added hook migration testing decisions (record/replay fixtures, differential tests, snapshot tooling) |
 | 2026-02-01 | Clarified no-daemon enforcement and policy-based self-improvement records |
 | 2026-02-02 | Added hook parity testing details (normalization rules, fixture format, differential vs snapshot strategy) |
+| 2026-02-03 | Added layered config/memory system design (global + project separation, tool shims, fallback resolution) |
+| 2026-02-03 | Added open questions about simplifying global/local memory and hook versioning |
+| 2026-02-04 | Added decision to avoid relative fallbacks when HOME is missing and to return Result for default_path |

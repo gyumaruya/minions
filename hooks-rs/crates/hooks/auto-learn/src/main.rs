@@ -7,7 +7,6 @@
 
 use anyhow::Result;
 use hook_common::prelude::*;
-use camino::Utf8PathBuf;
 use hook_memory::{AgentType, MemoryEvent, MemoryScope, MemoryStorage, MemoryType};
 use regex::Regex;
 
@@ -95,12 +94,14 @@ fn detect_learning(text: &str) -> Vec<(String, String, String)> {
 }
 
 fn save_learning(content: &str, memory_type: &str, trigger: &str) -> bool {
-    let project_dir = std::env::var("CLAUDE_PROJECT_DIR").unwrap_or_else(|_| ".".to_string());
-    let storage_path = Utf8PathBuf::from(&project_dir)
-        .join(".claude")
-        .join("memory")
-        .join("events.jsonl");
-
+    // Use global memory path (default: ~/.config/ai/memory/events.jsonl)
+    let storage_path = match MemoryStorage::default_path() {
+        Ok(path) => path,
+        Err(e) => {
+            eprintln!("Warning: Failed to determine memory storage path: {}", e);
+            return false;
+        }
+    };
     let storage = MemoryStorage::new(storage_path);
 
     let mtype = match memory_type {

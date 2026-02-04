@@ -19,6 +19,11 @@
 AI エージェントたちを「召喚」し、協調させる開発フレームワーク。
 **記憶と改善ループ**を Hooks で強制し、使うほど賢くなる自己改善システム。
 
+**設計哲学:**
+- **軽量**: 最小限のオーバーヘッド、ツールの進化を妨げない
+- **フック**: 行動を強制、口約束で終わらせない
+- **記憶**: 学習を蓄積、繰り返さない
+
 ---
 
 ## Why Minions?
@@ -30,6 +35,67 @@ AI エージェントたちを「召喚」し、協調させる開発フレー�
 | コストが心配 | **Copilot** (Sonnet 無料枠) をデフォルトに |
 | 学習が蓄積しない | **Memory Layer** で自己改善 |
 | 口約束で守られない | **Hooks** でワークフローを強制 |
+
+---
+
+## Design Philosophy
+
+### 軽量・ツール非依存
+
+**各種 AI CLI の進化を妨げない設計:**
+
+```
+Claude Code, Codex, Gemini, Copilot
+         │
+         ▼
+┌────────────────────────┐
+│  Minions (thin layer)  │  ← 軽量なアダプター
+│  • Hooks (強制)        │
+│  • Memory (蓄積)       │
+└────────────────────────┘
+         │
+         ▼
+   Your Project
+```
+
+**ポイント:**
+- ツール本体には手を加えない
+- 薄い層（フック + 記憶）のみを提供
+- ツールが更新されても影響を受けない
+- 新しいツールが出ても簡単に統合
+
+### フックがキモ
+
+**「やろう」ではなく「やらざるを得ない」:**
+
+| 従来のアプローチ | Minions のアプローチ |
+|--------------|------------------|
+| Prompt: "Use Japanese for PR" | Hook: English PR をブロック |
+| Prompt: "Always consult Codex" | Hook: 設計時に Codex を提案 |
+| Prompt: "Remember this" | Hook: パターンを自動学習 |
+
+**結果:** 口約束で終わらず、確実に実行される
+
+### 記憶がキモ
+
+**使うほど賢くなる:**
+
+```
+Day 1: "Use Japanese for PR"
+  → Memorized
+
+Day 2:
+  → Auto-applied (no reminder needed)
+
+Day 30:
+  → 30 learned preferences, 50 workflows
+  → Personalized development environment
+```
+
+**XDG準拠のグローバル記憶:**
+- `~/.config/ai/memory/events.jsonl` - 全プロジェクト共通
+- 一度学習した好みが全体に適用
+- プロジェクト固有の記憶も分離可能（Phase 2）
 
 ---
 
@@ -85,7 +151,7 @@ Auto-applied in next session
 
 ```
 ❌ Prompt only: "Use Japanese for PR" → Forgotten
-✅ Hook enforced: enforce-japanese.py blocks English PR
+Hook enforced: enforce-japanese.py blocks English PR
 ```
 
 ---
@@ -140,6 +206,48 @@ Minions は以下のプロジェクトから着想を得ています:
 │  └─────────────────────────────────────────────────────────┘   │
 └─────────────────────────────────────────────────────────────────┘
 ```
+
+---
+
+## Global Setup (Phase 1)
+
+**新プロジェクトでも即座に使える:**
+
+### セットアップ（初回のみ）
+
+```bash
+# 1. minions をクローン
+git clone https://github.com/gyumaruya/minions.git ~/minions
+cd ~/minions
+
+# 2. Rust フックをビルド
+cd hooks-rs && cargo build --release
+
+# 3. グローバル設定をセットアップ
+~/minions/scripts/setup-global-config.sh
+```
+
+**これで完了！** 以降、すべてのプロジェクトで：
+- 自動PR作成
+- 記憶の自動注入
+- セキュリティガードレール
+- 日本語強制（個人設定）
+
+### 構成
+
+```
+~/.config/ai/
+├── hooks/bin/       # Rust フックバイナリ (symlink)
+└── memory/          # グローバル記憶
+
+~/.claude/
+└── settings.json    # 全23フック定義
+```
+
+**利点:**
+- 新プロジェクト = 設定ゼロ
+- 学習した好み = 全体に適用
+- ツール更新 = 影響なし（疎結合）
 
 ---
 
@@ -343,7 +451,46 @@ poe all         # 全チェック
 # Memory CLI
 uv run python -m minions.memory.cli list
 uv run python -m minions.memory.cli search "keyword"
+
+# Shell script tests (bats-core)
+bats tests/setup-global-config.bats  # セットアップスクリプトのテスト
 ```
+
+### Testing
+
+#### Python Tests (pytest)
+
+```bash
+# 全テスト実行
+uv run pytest -v
+
+# 特定のテストファイルのみ
+uv run pytest tests/test_memory.py -v
+
+# カバレッジ付き
+uv run pytest --cov=src --cov-report=term-missing
+```
+
+#### Shell Script Tests (bats-core)
+
+```bash
+# bats-core のインストール（初回のみ）
+brew install bats-core
+
+# セットアップスクリプトのテスト
+bats tests/setup-global-config.bats
+
+# 詳細出力
+bats --print-output-on-failure tests/setup-global-config.bats
+```
+
+テストカバレッジ:
+- ディレクトリ構造の作成
+- シンボリックリンクの作成と再作成
+- 記憶ファイルの移行
+- 設定ファイルの作成とバックアップ
+- エラーケース（ディレクトリ不在、バイナリ不在）
+- 複数回実行時の安全性
 
 ---
 

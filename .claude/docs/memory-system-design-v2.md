@@ -236,8 +236,37 @@ Choose what to implement next:
 3. **Importance Scoring Weights** - Fine-tune scoring factors
 4. **mem0 Ranking Strategy** - Search, dedup, and ranking logic
 
+## 実装状況（2026-02-04）
+
+### 実装済み: Phase 1（部分的）
+
+**JSONL Source of Truth:**
+- ✅ グローバル記憶パス: `~/.config/ai/memory/events.jsonl`
+- ✅ `MemoryEvent` スキーマ（Rust: `hook-memory` クレート）
+- ✅ Append-only JSONL ログ
+
+**Rust フック:**
+- ✅ `load-memories` - セッション開始時に読み込み
+- ✅ `auto-learn` - ユーザー修正の自動学習
+- ✅ `pre-tool-recall` - ツール実行前の記憶参照
+- ✅ `post-tool-record` - ツール実行結果の記録
+
+**未実装:**
+- ❌ Memory Broker（統一API、スキーマ検証、要約）
+- ❌ mem0 ベクトル索引
+- ❌ Importance scoring
+- ❌ Hot/warm/cold lifecycle
+- ❌ Multi-stage summarization
+
+### 次のステップ
+
+1. **Phase 2: ローカル記憶の追加** - プロジェクト固有の記憶分離
+2. **Memory Broker 実装** - このドキュメントの設計に従う
+3. **mem0 統合** - ベクトル検索の追加
+
 ## References
 
-- Current implementation: `.claude/memory/`
-- Hooks: `.claude/hooks/load-memories.py`, `.claude/hooks/auto-learn.py`
-- Documentation: `.claude/docs/MEMORY_SYSTEM.md`
+- 実装済み: `~/.config/ai/memory/events.jsonl`
+- Rust フック: `hooks-rs/crates/hooks/{load-memories,auto-learn,pre-tool-recall,post-tool-record}`
+- スキーマ: `hooks-rs/crates/hook-memory/src/schema.rs`
+- Documentation: `.claude/docs/MEMORY_SYSTEM.md`, `.claude/docs/GLOBAL_CONFIG_DESIGN.md`
