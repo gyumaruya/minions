@@ -1,6 +1,12 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
+import json
+import re
+import sys
+from datetime import UTC, datetime
+from pathlib import Path
+
 """
 PostToolUse hook: Log Codex/Gemini CLI input/output to JSONL file.
 
@@ -9,12 +15,6 @@ Logs are stored in .claude/logs/cli-tools.jsonl
 
 All agents (Claude Code, subagents, Codex, Gemini) can read this log.
 """
-
-import json
-import re
-import sys
-from datetime import UTC, datetime
-from pathlib import Path
 
 LOG_DIR = Path(__file__).parent.parent / "logs"
 LOG_FILE = LOG_DIR / "cli-tools.jsonl"
@@ -128,12 +128,15 @@ def main() -> None:
     log_entry(entry)
 
     # Output notification via hookSpecificOutput
-    json.dump({
-        "hookSpecificOutput": {
-            "hookEventName": "PostToolUse",
-            "additionalContext": f"[LOG] {tool.capitalize()} call logged to .claude/logs/cli-tools.jsonl"
-        }
-    }, sys.stdout)
+    json.dump(
+        {
+            "hookSpecificOutput": {
+                "hookEventName": "PostToolUse",
+                "additionalContext": f"[LOG] {tool.capitalize()} call logged to .claude/logs/cli-tools.jsonl",
+            }
+        },
+        sys.stdout,
+    )
     sys.exit(0)
 
 

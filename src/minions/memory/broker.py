@@ -253,7 +253,9 @@ class MemoryBroker:
             (re.compile(r"ghp_[a-zA-Z0-9]{20,}"), "[REDACTED_GITHUB_TOKEN]"),
             (re.compile(r"gho_[a-zA-Z0-9]{20,}"), "[REDACTED_GITHUB_TOKEN]"),
             (re.compile(r"ghs_[a-zA-Z0-9]{20,}"), "[REDACTED_GITHUB_TOKEN]"),
-            # Generic secrets
+            # Bearer tokens
+            (re.compile(r"Bearer\s+[a-zA-Z0-9\-._~+/]+"), "[REDACTED_BEARER_TOKEN]"),
+            # Generic secrets (key=value or key:value patterns)
             (
                 re.compile(
                     r"(api[_-]?key|apikey|secret|password|token)\s*[=:]\s*['\"]?([^\s'\"]+)",
