@@ -76,7 +76,8 @@ if [[ "$tool_name" == "Bash" ]]; then
 
     # SECURITY: Check for shell metacharacters that could be used for command injection
     # Deny any command containing: ; && || | > < ` $( { }
-    if [[ "$command_str" =~ [;\&\|><\`\$\(\)\{\}] ]]; then
+    meta_pattern='[;&|><`$(){}]'
+    if [[ "$command_str" =~ $meta_pattern ]]; then
         # Allow safe patterns with pipes/redirects
         case "$command_str" in
             "git log"*"|"*"head"*|"git diff"*"|"*"head"*)
