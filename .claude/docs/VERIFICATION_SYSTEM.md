@@ -32,34 +32,71 @@
 - PR 作成前のチェック
 - CI/CD パイプライン（exit code により失敗検知）
 
-## Phase 2: 自動検証（計画中）
+## Phase 2: 自動検証 ✅ 実装済み
 
 ### アプローチ
 
-**明示マーカー検出（PostAssistantResponse または代替手段）**:
+**Stop/SubagentStop フックによる自動検証**:
 
-1. エージェントが完了時に `[[VERIFY:done]]` マーカーを応答に含める
-2. 検出フック（実装方法は要検討）:
-   - **理想**: PostAssistantResponse フック（現在 Claude Code に存在しない）
-   - **代替案1**: 手動トリガー（`/verify` スキル）
-   - **代替案2**: コミット前フック（git pre-commit）
-3. 自動的に検証エージェントを起動
-4. 検証結果をコンテキストに追加
+1. エージェントが応答完了時に Stop/SubagentStop フックが発火
+2. `transcript_path` から最終アシスタント発言を抽出
+3. 最終行が「done」または「完了」のみの場合に検証実行
+4. `scripts/verify.sh` を自動実行
 
-### 技術的制約
+### 実装詳細
 
-**重要**: `[[VERIFY:done]]` マーカーは**応答本文**に出現するため、PostToolUse フックでは検出できません。実装には以下のいずれかが必要:
-
-- Claude Code 本体への PostAssistantResponse フック追加
-- または、手動トリガー方式（`/verify` スキル）を継続
-- または、git フックでの検証強制化
-
-### エージェント指示
-
-```markdown
-完了時は必ず以下を応答に含める:
-- 「作業完了しました [[VERIFY:done]]」
+**フック構成** (`~/.claude/settings.json`):
+```json
+"Stop": [{
+  "hooks": [{
+    "command": "$CLAUDE_PROJECT_DIR/scripts/verify-on-done.sh"
+  }]
+}],
+"SubagentStop": [{
+  "matcher": ".*",
+  "hooks": [{
+    "command": "$CLAUDE_PROJECT_DIR/scripts/verify-on-done.sh"
+  }]
+}]
 ```
+
+**検証スクリプト** (`scripts/verify-on-done.sh`):
+- transcript 解析（Python）
+- **AI による完了意図判定**（Claude Haiku）
+- 重複実行防止（ロックファイル）
+- 再帰防止（`stop_hook_active` チェック）
+
+### 完了意図の判定
+
+Claude Haiku（高速・安価）を使用して、最終発言が完了を意図しているかを AI が判定:
+
+**判定基準**:
+- 作業・タスク・実装が完了したことを明示
+- 「できました」「完了」「終わりました」などの完了表現
+- 英語: "done", "finished", "completed", "ready" など
+
+**メリット**:
+- 柔軟な表現に対応
+- 誤検知を大幅に削減
+- パターンマッチングより賢い
+
+### 使い方
+
+完了時に自然な表現で完了を伝える:
+
+```
+実装が完了しました。テストも通っています。
+```
+
+```
+機能追加が終わりました。
+```
+
+```
+All done. Ready for review.
+```
+
+AI が完了意図を検出すると、自動的に検証が実行されます。
 
 ## Phase 3: 専用ツール（将来）
 

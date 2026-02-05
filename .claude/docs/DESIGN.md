@@ -28,6 +28,8 @@ Self-improving memory is a hook-driven, session-only cycle with four phases: Rec
 
 Memory is stored as an append-only JSONL event log (canonical), plus derived artifacts: a compacted summary store, a tiered cache (hot/warm/cold), and optional vector index for semantic retrieval. Each event includes a stable ID, scope, ACL, agent role, task metadata, outcome signals, and an importance score. Summaries are generated at tier boundaries and on session end.
 
+Post-completion verification is hook-driven: a PostAssistantResponse hook inspects the agent response for explicit completion markers (preferred) or high-confidence completion keywords, then invokes a verifier agent. Tool failures trigger a separate verification path via PostToolUse error handling. Verification runs are bounded, emit a structured result, and never mutate the working tree.
+
 Self-improvement uses a policy feedback loop: retrieval outcomes and task results update scoring weights and retrieval thresholds per role (Conductor/Musician) and per scope. Updates are stored as versioned policy records in the JSONL log and applied on subsequent sessions via SessionStart hook.
 
 ### Layered Config/Memory System (Global + Project)
@@ -154,6 +156,11 @@ Resolution order: Project overrides Global; tool-specific configs read from `.ai
 | Adopt 3-tier memory routing (Global + Project + Session) with strict promotion gates | Minimizes cross-project contamination while preserving durable user-level learning and session-local experimentation | Global-only, Global+Project only | 2026-02-04 |
 | Store tool outcomes and error resolutions as structured episodes (task, tool, inputs hash, outcome, fix, confidence) and derive reusable patterns from repeated episodes | Improves learnability from failures/successes and supports reliable retrieval beyond free-text logs | Raw transcript-only learning | 2026-02-04 |
 | Use retrieval budget policy (top-k per scope + diversity constraints + hard token budget per memory class) | Prevents context pollution under large context windows while maintaining high-signal recall | Recency-only retrieval, unconstrained semantic top-k | 2026-02-04 |
+| Trigger verification via PostAssistantResponse with explicit marker + keyword fallback | Reduces false positives while keeping low friction for completion detection | UserMessageSend pre-send hook, tool-only triggers | 2026-02-05 |
+| Use PostToolUse error hook to invoke verification on failures | Ensures error cases get a structured completion check and remediation report | Rely on response keywords only | 2026-02-05 |
+| Default to cost-effective verifier with escalation based on risk/impact | Balances thoroughness with budget | Always Codex, always Copilot | 2026-02-05 |
+| Verification profile tiers (quick/standard/deep) with bounded checks | Predictable runtime and configurable rigor | Unbounded ad-hoc verification | 2026-02-05 |
+| Use Stop/SubagentStop hooks as the Claude Code equivalent of PostAssistantResponse | Enables completion detection and verification triggers at response end | Rely on PostToolUse heuristics only | 2026-02-05 |
 
 ### Memory Learning Strategy (2026-02-04)
 
@@ -193,6 +200,11 @@ Resolution order: Project overrides Global; tool-specific configs read from `.ai
 - [ ] Define command normalization/parsing for PermissionRequest classifier (argv-based, not raw string only)
 - [ ] Add adversarial test corpus for command obfuscation (shell expansion, separators, encoded payloads)
 - [ ] Add timeout/circuit-breaker policy for LLM fallback in approval hooks
+- [ ] Define verification result schema (status, checks, issues, next_steps)
+- [ ] Implement PostAssistantResponse completion detector (marker + keyword heuristic)
+- [ ] Implement PostToolUse error verification trigger
+- [ ] Add verifier selection policy (risk/impact thresholds and overrides)
+- [ ] Add verification profiles (quick/standard/deep) and default mapping
 
 ## Open Questions
 
@@ -207,6 +219,8 @@ Resolution order: Project overrides Global; tool-specific configs read from `.ai
 - [ ] Do we need a global/local split at all, or is a single per-project JSONL log sufficient?
 - [ ] Is hook versioning via manifest.json necessary, or can we rely on the hook binary itself (or none)?
 - [ ] Should ambiguous PermissionRequest default to deny, or user-prompt fallback, when LLM call fails?
+- [ ] Which verification checks are mandatory vs profile-specific (tests, lint, typecheck)?
+- [ ] What are the exact keyword heuristics to avoid false positives across JP/EN?
 
 ## Changelog
 
@@ -227,3 +241,4 @@ Resolution order: Project overrides Global; tool-specific configs read from `.ai
 | 2026-02-04 | Added decision to avoid relative fallbacks when HOME is missing and to return Result for default_path |
 | 2026-02-04 | Recorded PermissionRequest auto-approval triage direction and follow-up TODO/Open Question items |
 | 2026-02-04 | Added memory architecture recommendation (3-tier routing), structured episode learning, and retrieval budget policy |
+| 2026-02-05 | Added decision to use Stop/SubagentStop hooks for response-completion verification triggers in Claude Code |
