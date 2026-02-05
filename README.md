@@ -221,33 +221,68 @@ git clone https://github.com/gyumaruya/minions.git ~/minions
 cd ~/minions
 
 # 2. Rust フックをビルド
-cd hooks-rs && cargo build --release
+cd resources/hooks-rs && cargo build --release && cd ../..
 
 # 3. グローバル設定をセットアップ
-~/minions/scripts/setup-global-config.sh
+bash scripts/setup-global-config.sh
 ```
+
+**セットアップスクリプトの実行内容:**
+
+1. `~/.config/ai/` と `~/.claude/` ディレクトリを作成
+2. フックバイナリへのシンボリックリンク作成
+3. スキル、エージェント、ルールへのシンボリックリンク作成
+4. CLAUDE.md へのシンボリックリンク作成
+5. グローバル記憶の初期化
+6. `~/.claude/settings.json` にフック定義を設定
 
 **これで完了！** 以降、すべてのプロジェクトで：
-- 自動PR作成
-- 記憶の自動注入
-- セキュリティガードレール
-- 日本語強制（個人設定）
+- **フック（23個）**: セキュリティ、ワークフロー、記憶
+- **スキル（18個）**: `/startproject`, `/delegate`, `/checkpointing` など
+- **エージェント階層**: Conductor → Musician
+- **ルール（10ファイル）**: 言語、開発環境、セキュリティなど
+- **記憶システム**: 自動学習と改善ループ
 
-### 構成
+### グローバル構成
 
 ```
-~/.config/ai/
-├── hooks/bin/       # Rust フックバイナリ (symlink)
-└── memory/          # グローバル記憶
+~/.config/ai/              # ツール非依存（XDG準拠）
+├── hooks/
+│   └── bin/              # フックバイナリ (symlink)
+└── memory/
+    └── events.jsonl      # グローバル記憶
 
-~/.claude/
-└── settings.json    # 全23フック定義
+~/.claude/                 # Claude Code が自動認識
+├── skills/               # スキル (symlink)
+├── agents/               # エージェント設定 (symlink)
+├── rules/                # ルール (symlink)
+├── CLAUDE.md             # プロジェクト指示書 (symlink)
+└── settings.json         # 全23フック定義
 ```
+
+**配置場所の方針:**
+- **`~/.config/ai/`**: フック・記憶（ツール非依存、将来的に他のAIツールとも共有可能）
+- **`~/.claude/`**: スキル・エージェント・ルール・CLAUDE.md（Claude Code が自動認識）
 
 **利点:**
 - 新プロジェクト = 設定ゼロ
 - 学習した好み = 全体に適用
+- シンボリックリンク = minions で更新すれば即座に反映
 - ツール更新 = 影響なし（疎結合）
+
+### 動作確認
+
+```bash
+# グローバル設定を確認
+ls -la ~/.config/ai/
+ls -la ~/.claude/
+
+# スキルが使えることを確認
+ls ~/.claude/skills/
+
+# CLAUDE.md が読めることを確認
+head -5 ~/.claude/CLAUDE.md
+```
 
 ---
 
@@ -272,29 +307,22 @@ gemini login
 npm install -g @anthropic-ai/claude-code  # claude の alias として copilot を使用
 ```
 
-### Installation
+### 新規プロジェクトで使う
 
-既存プロジェクトに導入:
-
-```bash
-git clone --depth 1 https://github.com/gyumaruya/minions.git .minions-starter
-cp -r .minions-starter/.claude .minions-starter/.codex .minions-starter/.gemini .minions-starter/CLAUDE.md .
-rm -rf .minions-starter
-
-# Python 依存関係（Memory Layer 用）
-uv sync
-```
-
-### Start
+グローバルセットアップ完了後、新規プロジェクトでは**何も設定不要**です。
 
 ```bash
+# 任意のプロジェクトで Claude Code を起動
+cd ~/your-project
 claude
 ```
 
 セッション開始時に自動で:
 1. 過去の記憶をコンテキストに注入
 2. Draft PR を自動作成
-3. エージェントルーティングを有効化
+3. 全23フックが有効化
+4. 全18スキルが使用可能
+5. エージェント階層が利用可能
 
 ---
 
