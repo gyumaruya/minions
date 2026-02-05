@@ -7,7 +7,6 @@ members = [
     "crates/hooks/enforce-no-merge",
     "crates/hooks/enforce-draft-pr",
     "crates/hooks/prevent-secrets-commit",
-    "crates/hooks/ensure-pr-open",
     # Tier 2 - Workflow hooks
     "crates/hooks/enforce-japanese",
     "crates/hooks/lint-on-save",
