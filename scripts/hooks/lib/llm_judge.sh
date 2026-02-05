@@ -52,16 +52,41 @@ EOF
 )"
 
     # Call Copilot CLI (doesn't trigger Claude hooks internally)
-    local response
-    response="$(copilot -p "$prompt" --model claude-sonnet-4 --allow-all --silent 2>/dev/null || echo '{"error": "LLM call failed"}')"
+    local raw_response
+    raw_response="$(copilot -p "$prompt" --model claude-sonnet-4 --allow-all --silent 2>/dev/null)" || {
+        echo '{"error": "LLM call failed", "decision": "ask_user"}'
+        return 1
+    }
 
     # Clean up response: extract JSON from possible markdown code blocks
-    response="$(echo "$response" | sed -n '/^{/,/^}/p' | head -1)"
+    local response=""
 
-    # If response doesn't start with {, try to extract JSON
-    if [[ ! "$response" =~ ^\{ ]]; then
-        # Try to find JSON in the response
-        response="$(echo "$response" | grep -o '{[^}]*}' | head -1 || echo '{"error": "No JSON in response"}')"
+    # Try to extract JSON using jq (most reliable)
+    if command -v jq &>/dev/null; then
+        # First, try to parse the entire response as JSON
+        if echo "$raw_response" | jq -e '.' &>/dev/null; then
+            response="$raw_response"
+        else
+            # Try to extract JSON from markdown code blocks or inline
+            # Look for ```json ... ``` or { ... }
+            local extracted
+            extracted="$(echo "$raw_response" | sed -n 's/.*```json\s*//p' | sed -n 's/\s*```.*//p' | head -1)"
+            if [[ -n "$extracted" ]] && echo "$extracted" | jq -e '.' &>/dev/null; then
+                response="$extracted"
+            else
+                # Try to find any valid JSON object
+                extracted="$(echo "$raw_response" | grep -oE '\{[^{}]*\}' | head -1)"
+                if [[ -n "$extracted" ]] && echo "$extracted" | jq -e '.' &>/dev/null; then
+                    response="$extracted"
+                fi
+            fi
+        fi
+    fi
+
+    # If we couldn't extract valid JSON, return error
+    if [[ -z "$response" ]]; then
+        echo '{"error": "No valid JSON in response", "decision": "ask_user"}'
+        return 1
     fi
 
     echo "$response"

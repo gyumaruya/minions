@@ -8,6 +8,11 @@ set -uo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
+# Check for required commands
+if ! command -v jq &> /dev/null; then
+    exit 0
+fi
+
 # Source common libraries
 source "$SCRIPT_DIR/lib/llm_judge.sh"
 source "$SCRIPT_DIR/lib/recursion_guard.sh"
@@ -49,14 +54,16 @@ if [[ ! -f "$agent_def_path" ]]; then
     exit 0
 fi
 
-# Prepare input for LLM
-llm_input="$(cat <<EOF
-{
-  "event": "$notification_type",
-  "content": $(echo "$content" | jq -Rs '.')
-}
-EOF
-)"
+# Prepare input for LLM with proper JSON escaping
+llm_input="$(jq -n \
+    --arg event "$notification_type" \
+    --arg content "$content" \
+    '{event: $event, content: $content}' 2>/dev/null)"
+
+if [[ -z "$llm_input" || "$llm_input" == "null" ]]; then
+    # JSON construction failed, skip
+    exit 0
+fi
 
 # Determine if LLM consultation is needed
 needs_llm=false

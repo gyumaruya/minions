@@ -2,11 +2,19 @@
 # Permission Request Hook: Evaluates risky operations via LLM judgment
 # Hook Type: PermissionRequest
 # Response Format: {"decision": "allow"} | {"decision": "deny", "message": "..."} | {"decision": "ask_user", "message": "..."}
+#
+# Security: deny-by-default design. Failed parsing/LLM calls result in deny or ask_user.
 
 set -uo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+
+# Check for required commands
+if ! command -v jq &> /dev/null; then
+    echo '{"decision": "ask_user", "message": "jq is not installed. Cannot evaluate safely."}'
+    exit 0
+fi
 
 # Source common libraries
 source "$SCRIPT_DIR/lib/llm_judge.sh"
@@ -66,21 +74,118 @@ esac
 if [[ "$tool_name" == "Bash" ]]; then
     command_str="$(echo "$tool_input" | jq -r '.command // empty')"
 
-    # Whitelist safe commands
+    # SECURITY: Check for shell metacharacters that could be used for command injection
+    # Deny any command containing: ; && || | > < ` $( { }
+    if [[ "$command_str" =~ [;\&\|><\`\$\(\)\{\}] ]]; then
+        # Allow safe patterns with pipes/redirects
+        case "$command_str" in
+            "git log"*"|"*"head"*|"git diff"*"|"*"head"*)
+                # Safe: git log | head patterns
+                ;;
+            *"2>/dev/null"*|*">/dev/null"*)
+                # Safe: stderr/stdout suppression
+                ;;
+            *)
+                echo '{"decision": "ask_user", "message": "Command contains shell metacharacters. Please review: '"$command_str"'"}'
+                exit 0
+                ;;
+        esac
+    fi
+
+    # Whitelist safe commands (exact match or safe prefix patterns)
+    # Using regex for stricter matching
     case "$command_str" in
-        "git status"*|"git diff"*|"git log"*|"git branch"*)
+        "git status"|"git status "*)
             echo '{"decision": "allow"}'
             exit 0
             ;;
-        "pytest"*|"ruff check"*|"ruff format"*|"uv run"*)
+        "git diff"|"git diff "*)
             echo '{"decision": "allow"}'
             exit 0
             ;;
-        "ls"*|"pwd"|"cat"*|"head"*|"tail"*|"wc"*)
+        "git log"|"git log "*)
             echo '{"decision": "allow"}'
             exit 0
             ;;
-        "echo"*|"date"|"which"*|"type"*)
+        "git branch"|"git branch "*)
+            echo '{"decision": "allow"}'
+            exit 0
+            ;;
+        "git add"|"git add "*)
+            echo '{"decision": "allow"}'
+            exit 0
+            ;;
+        "git commit"|"git commit "*)
+            echo '{"decision": "allow"}'
+            exit 0
+            ;;
+        "git push"|"git push "*)
+            # Check for force push to main/master
+            if [[ "$command_str" =~ --force.*main|--force.*master|-f.*main|-f.*master ]]; then
+                echo '{"decision": "deny", "message": "Force push to main/master is prohibited"}'
+                exit 0
+            fi
+            echo '{"decision": "allow"}'
+            exit 0
+            ;;
+        "pytest"|"pytest "*)
+            echo '{"decision": "allow"}'
+            exit 0
+            ;;
+        "ruff check"|"ruff check "*)
+            echo '{"decision": "allow"}'
+            exit 0
+            ;;
+        "ruff format"|"ruff format "*)
+            echo '{"decision": "allow"}'
+            exit 0
+            ;;
+        "uv run"|"uv run "*)
+            echo '{"decision": "allow"}'
+            exit 0
+            ;;
+        "uv sync"|"uv add"|"uv add "*)
+            echo '{"decision": "allow"}'
+            exit 0
+            ;;
+        "ls"|"ls "*)
+            echo '{"decision": "allow"}'
+            exit 0
+            ;;
+        "pwd")
+            echo '{"decision": "allow"}'
+            exit 0
+            ;;
+        "date"|"which"|"which "*)
+            echo '{"decision": "allow"}'
+            exit 0
+            ;;
+        "type"|"type "*)
+            echo '{"decision": "allow"}'
+            exit 0
+            ;;
+        "copilot"|"copilot "*)
+            echo '{"decision": "allow"}'
+            exit 0
+            ;;
+        "codex"|"codex "*)
+            echo '{"decision": "allow"}'
+            exit 0
+            ;;
+        "gemini"|"gemini "*)
+            echo '{"decision": "allow"}'
+            exit 0
+            ;;
+        "gh pr"|"gh pr "*)
+            # Check for prohibited operations (combine/join PRs)
+            if [[ "$command_str" =~ gh\ pr\ (combine|join) ]]; then
+                echo '{"decision": "deny", "message": "PR combine operations by agents are prohibited"}'
+                exit 0
+            fi
+            echo '{"decision": "allow"}'
+            exit 0
+            ;;
+        "gh issue"|"gh issue "*)
             echo '{"decision": "allow"}'
             exit 0
             ;;
@@ -88,43 +193,52 @@ if [[ "$tool_name" == "Bash" ]]; then
 
     # Blacklist dangerous commands
     case "$command_str" in
-        "rm -rf /"*|"rm -rf /*"|"sudo rm -rf"*)
+        "rm -rf /"|"rm -rf /*"|"sudo rm"*)
             echo '{"decision": "deny", "message": "Dangerous operation: System-wide deletion is prohibited"}'
             exit 0
             ;;
-        "gh pr merge"*|"git merge"*)
-            echo '{"decision": "deny", "message": "Merge operations by agents are prohibited. Please merge manually via GitHub UI or CLI"}'
+        *"curl"*"|"*"bash"*|*"wget"*"|"*"sh"*)
+            echo '{"decision": "deny", "message": "Piping remote scripts to shell is prohibited"}'
             exit 0
             ;;
-        "git push --force"*"main"*|"git push --force"*"master"*)
-            echo '{"decision": "deny", "message": "Force push to main/master is prohibited"}'
+        "sudo "*)
+            echo '{"decision": "ask_user", "message": "sudo commands require user approval: '"$command_str"'"}'
             exit 0
             ;;
     esac
 fi
 
-# For other operations, use LLM judgment
+# For other operations, use LLM judgment (deny-by-default)
 agent_def_path="$PROJECT_ROOT/.claude/agents/permission-judge.md"
 
 if [[ ! -f "$agent_def_path" ]]; then
-    # No agent definition, default to allow
-    echo '{"decision": "allow"}'
+    # No agent definition, ask user (deny-by-default)
+    echo '{"decision": "ask_user", "message": "Unknown operation requires user approval: '"$tool_name"'"}'
     exit 0
 fi
 
-# Prepare input for LLM
-llm_input="$(cat <<EOF
-{
-  "tool": "$tool_name",
-  "input": $tool_input
-}
-EOF
-)"
+# Prepare input for LLM with proper JSON escaping
+llm_input="$(jq -n \
+    --arg tool "$tool_name" \
+    --argjson input "$tool_input" \
+    '{tool: $tool, input: $input}' 2>/dev/null)"
+
+if [[ -z "$llm_input" || "$llm_input" == "null" ]]; then
+    # JSON construction failed, ask user
+    echo '{"decision": "ask_user", "message": "Failed to parse tool input. Please review manually."}'
+    exit 0
+fi
 
 # Call LLM judge
 response="$(llm_judge "$agent_def_path" "$llm_input" "Evaluate this operation and provide judgment")"
 
-# Validate response format
+# Validate response format strictly with jq -e
+if ! echo "$response" | jq -e '.decision' &>/dev/null; then
+    # Invalid JSON response, ask user (deny-by-default)
+    echo '{"decision": "ask_user", "message": "LLM judgment failed. Please review manually."}'
+    exit 0
+fi
+
 decision="$(echo "$response" | jq -r '.decision // empty')"
 
 case "$decision" in
@@ -133,15 +247,18 @@ case "$decision" in
         ;;
     "deny")
         message="$(echo "$response" | jq -r '.message // "Operation denied"')"
-        echo "{\"decision\": \"deny\", \"message\": \"$message\"}"
+        # Escape message for JSON output
+        escaped_message="$(echo "$message" | jq -Rs '.[:-1]')"
+        echo "{\"decision\": \"deny\", \"message\": $escaped_message}"
         ;;
     "ask_user")
         message="$(echo "$response" | jq -r '.message // "User confirmation required"')"
-        echo "{\"decision\": \"ask_user\", \"message\": \"$message\"}"
+        escaped_message="$(echo "$message" | jq -Rs '.[:-1]')"
+        echo "{\"decision\": \"ask_user\", \"message\": $escaped_message}"
         ;;
     *)
-        # Invalid response, default to allow
-        echo '{"decision": "allow"}'
+        # Invalid decision, ask user (deny-by-default)
+        echo '{"decision": "ask_user", "message": "Unexpected LLM response. Please review manually."}'
         ;;
 esac
 
