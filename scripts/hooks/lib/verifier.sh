@@ -40,9 +40,9 @@ run_verification_checks() {
 
     # Git status check
     if command -v git &> /dev/null; then
-        local status
-        status="$(git status --porcelain 2>/dev/null)"
-        if [[ -n "$status" ]]; then
+        local git_porcelain
+        git_porcelain="$(git status --porcelain 2>/dev/null)"
+        if [[ -n "$git_porcelain" ]]; then
             git_status="dirty"
         fi
     fi
