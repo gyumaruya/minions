@@ -68,23 +68,23 @@ if [[ -z "$last_assistant" ]]; then
 fi
 
 # Check for completion intent using Claude Haiku
-# Use AI to determine if the message indicates task completion
-completion_check="$(claude -p "$(cat <<'PROMPT'
-以下のメッセージを分析して、作業完了を意図しているかどうかを判定してください。
+# Create prompt for AI judgment
+prompt="以下のメッセージを分析して、作業完了を意図しているかどうかを判定してください。
 
 【判定基準】
 - 作業・タスク・実装が完了したことを明示的に述べている
 - 「できました」「完了」「終わりました」「仕上がりました」などの完了表現
-- 英語の場合: "done", "finished", "completed", "ready" など
+- 英語の場合: \"done\", \"finished\", \"completed\", \"ready\" など
 
 【メッセージ】
 $last_assistant
 
 【出力形式】
 完了を意図している場合のみ「YES」を出力。それ以外は「NO」を出力。
-理由は不要。YESまたはNOのみ。
-PROMPT
-)" --model haiku --output-format text 2>/dev/null)"
+理由は不要。YESまたはNOのみ。"
+
+# Use AI to determine if the message indicates task completion
+completion_check="$(claude -p "$prompt" --model haiku --output-format text 2>/dev/null)"
 
 completion_check_upper="$(echo "$completion_check" | tr '[:lower:]' '[:upper:]' | xargs)"
 
