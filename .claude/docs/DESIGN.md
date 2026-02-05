@@ -166,6 +166,7 @@ Resolution order: Project overrides Global; tool-specific configs read from `.ai
 | Add hook recursion guard (env flag + depth counter + run-id) to prevent infinite loops | Prevents self-triggering when hooks invoke tools/LLMs | Trust hook discipline only | 2026-02-05 |
 | Require strict Stop completion gates (acceptance, tests, regressions, tasks, Codex review) before “done” | Enforces high-confidence completion and reduces rework | Soft checklist only | 2026-02-05 |
 | Auto-answer repeated user questions using stored Q/A memory with confidence threshold | Reduces friction and avoids re-asking | Always ask again | 2026-02-05 |
+| Prevent hook recursion without env vars by invoking Claude Code with isolated settings (via `--setting-sources` + `--settings`) and a strict tool denylist (`--tools ""` or `--disallowedTools`) for judgment subcalls | Avoids hook self-triggering while keeping Opus judgment available | Env flags, ad-hoc prompt markers only | 2026-02-05 |
 
 ### Memory Learning Strategy (2026-02-04)
 
@@ -232,6 +233,7 @@ Resolution order: Project overrides Global; tool-specific configs read from `.ai
 - [ ] What are the exact keyword heuristics to avoid false positives across JP/EN?
 - [ ] Should PermissionRequest default to deny or to user-prompt when Opus is unavailable?
 - [ ] What is the confidence threshold for auto-answering repeated questions?
+- [ ] Are PermissionRequest and Notification hook JSON outputs formally documented beyond the common JSON fields?
 
 ## Changelog
 
@@ -254,3 +256,4 @@ Resolution order: Project overrides Global; tool-specific configs read from `.ai
 | 2026-02-04 | Added memory architecture recommendation (3-tier routing), structured episode learning, and retrieval budget policy |
 | 2026-02-05 | Added decision to use Stop/SubagentStop hooks for response-completion verification triggers in Claude Code |
 | 2026-02-05 | Added hook responsibility split, recursion guard, strict Stop gates, and Q/A auto-answering decision |
+| 2026-02-05 | Added recursion prevention approach using isolated settings + tool denylist for judgment subcalls |

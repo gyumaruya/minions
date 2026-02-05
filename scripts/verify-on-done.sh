@@ -67,24 +67,39 @@ if [[ -z "$last_assistant" ]]; then
     exit 0
 fi
 
-# Check for completion intent using Claude Haiku
-# Create prompt for AI judgment
-prompt="以下のメッセージを分析して、作業完了を意図しているかどうかを判定してください。
+# Load stop-judge agent definition
+agent_def_path="$PROJECT_ROOT/.claude/agents/stop-judge.md"
+if [[ ! -f "$agent_def_path" ]]; then
+    # Fallback: simple completion detection
+    exit 0
+fi
 
-【判定基準】
-- 作業・タスク・実装が完了したことを明示的に述べている
-- 「できました」「完了」「終わりました」「仕上がりました」などの完了表現
-- 英語の場合: \"done\", \"finished\", \"completed\", \"ready\" など
+agent_def="$(cat "$agent_def_path")"
+
+# Create prompt for AI judgment (Opus 4.5 via Copilot CLI)
+prompt="サブエージェントを活用して。サブエージェントにはclaude-opus-4.5を使うようにして。
+
+$agent_def
+
+## Context
+
+以下のメッセージを分析して、作業完了を意図しているかどうかを判定してください。
 
 【メッセージ】
 $last_assistant
 
-【出力形式】
-完了を意図している場合のみ「YES」を出力。それ以外は「NO」を出力。
-理由は不要。YESまたはNOのみ。"
+## Task
 
-# Use AI to determine if the message indicates task completion
-completion_check="$(claude -p "$prompt" --model haiku --output-format text 2>/dev/null)"
+完了意図を検出してください。
+
+- 完了を意図している場合: 「YES」のみを出力
+- それ以外: 「NO」のみを出力
+
+理由は不要。YESまたはNOのみを出力してください。"
+
+# Use Opus 4.5 via Copilot CLI to determine task completion
+# Copilot CLI doesn't trigger hooks internally, preventing infinite recursion
+completion_check="$(copilot -p "$prompt" --model claude-sonnet-4 --allow-all --silent 2>/dev/null || echo "NO")"
 
 completion_check_upper="$(echo "$completion_check" | tr '[:lower:]' '[:upper:]' | xargs)"
 
