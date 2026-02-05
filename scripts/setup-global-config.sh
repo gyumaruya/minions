@@ -22,28 +22,76 @@ if [ ! -d "$MINIONS_DIR" ]; then
     exit 1
 fi
 
-if [ ! -d "$MINIONS_DIR/hooks-rs/target/release" ]; then
+if [ ! -d "$MINIONS_DIR/resources/hooks-rs/target/release" ]; then
     echo "ERROR: フックバイナリが見つかりません"
-    echo "先に hooks-rs をビルドしてください: cd $MINIONS_DIR/hooks-rs && cargo build --release"
+    echo "先に hooks-rs をビルドしてください: cd $MINIONS_DIR/resources/hooks-rs && cargo build --release"
     exit 1
 fi
 
 # 2. グローバルディレクトリ構造の作成
-echo "[1/5] ディレクトリ構造を作成..."
+echo "[1/8] ディレクトリ構造を作成..."
 mkdir -p "$GLOBAL_AI_DIR/hooks"
 mkdir -p "$GLOBAL_AI_DIR/memory"
 mkdir -p "$GLOBAL_CLAUDE_DIR"
 
 # 3. フックバイナリへのシンボリックリンク
-echo "[2/5] フックバイナリをリンク..."
+echo "[2/8] フックバイナリをリンク..."
 if [ -L "$GLOBAL_AI_DIR/hooks/bin" ]; then
     rm "$GLOBAL_AI_DIR/hooks/bin"
 fi
-ln -sf "$MINIONS_DIR/hooks-rs/target/release" "$GLOBAL_AI_DIR/hooks/bin"
-echo "  -> $GLOBAL_AI_DIR/hooks/bin -> $MINIONS_DIR/hooks-rs/target/release"
+ln -sf "$MINIONS_DIR/resources/hooks-rs/target/release" "$GLOBAL_AI_DIR/hooks/bin"
+echo "  -> $GLOBAL_AI_DIR/hooks/bin -> $MINIONS_DIR/resources/hooks-rs/target/release"
 
-# 4. 記憶の移行（既存があれば）
-echo "[3/5] 記憶を移行..."
+# 4. スキルのシンボリックリンク
+echo "[3/8] スキルをリンク..."
+if [ -L "$GLOBAL_AI_DIR/skills" ]; then
+    rm "$GLOBAL_AI_DIR/skills"
+fi
+if [ -d "$MINIONS_DIR/.claude/skills" ]; then
+    ln -sf "$MINIONS_DIR/.claude/skills" "$GLOBAL_AI_DIR/skills"
+    echo "  -> $GLOBAL_AI_DIR/skills -> $MINIONS_DIR/.claude/skills"
+else
+    echo "  -> ⚠ スキルディレクトリが見つかりません（スキップ）"
+fi
+
+# 5. エージェント設定のシンボリックリンク
+echo "[4/8] エージェント設定をリンク..."
+if [ -L "$GLOBAL_AI_DIR/agents" ]; then
+    rm "$GLOBAL_AI_DIR/agents"
+fi
+if [ -d "$MINIONS_DIR/.claude/agents" ]; then
+    ln -sf "$MINIONS_DIR/.claude/agents" "$GLOBAL_AI_DIR/agents"
+    echo "  -> $GLOBAL_AI_DIR/agents -> $MINIONS_DIR/.claude/agents"
+else
+    echo "  -> ⚠ エージェントディレクトリが見つかりません（スキップ）"
+fi
+
+# 6. ルールのシンボリックリンク
+echo "[5/8] ルールをリンク..."
+if [ -L "$GLOBAL_AI_DIR/rules" ]; then
+    rm "$GLOBAL_AI_DIR/rules"
+fi
+if [ -d "$MINIONS_DIR/.claude/rules" ]; then
+    ln -sf "$MINIONS_DIR/.claude/rules" "$GLOBAL_AI_DIR/rules"
+    echo "  -> $GLOBAL_AI_DIR/rules -> $MINIONS_DIR/.claude/rules"
+else
+    echo "  -> ⚠ ルールディレクトリが見つかりません（スキップ）"
+fi
+
+# 7. CLAUDE.md のシンボリックリンク
+echo "[6/8] CLAUDE.md をリンク..."
+if [ -L "$GLOBAL_CLAUDE_DIR/CLAUDE.md" ]; then
+    rm "$GLOBAL_CLAUDE_DIR/CLAUDE.md"
+fi
+if [ -f "$MINIONS_DIR/CLAUDE.md" ]; then
+    ln -sf "$MINIONS_DIR/CLAUDE.md" "$GLOBAL_CLAUDE_DIR/CLAUDE.md"
+    echo "  -> $GLOBAL_CLAUDE_DIR/CLAUDE.md -> $MINIONS_DIR/CLAUDE.md"
+else
+    echo "  -> ⚠ CLAUDE.md が見つかりません（スキップ）"
+fi
+
+# 8. 記憶の移行（既存があれば）
+echo "[7/8] 記憶を移行..."
 if [ -f "$MINIONS_DIR/.claude/memory/events.jsonl" ]; then
     if [ ! -f "$GLOBAL_AI_DIR/memory/events.jsonl" ]; then
         cp "$MINIONS_DIR/.claude/memory/events.jsonl" "$GLOBAL_AI_DIR/memory/events.jsonl"
@@ -56,8 +104,8 @@ else
     echo "  -> 空のグローバル記憶を作成しました"
 fi
 
-# 5. グローバル Claude settings.json の作成
-echo "[4/5] グローバル Claude 設定を作成..."
+# 9. グローバル Claude settings.json の作成
+echo "[8/8] グローバル Claude 設定を作成..."
 
 # 既存の settings.json をバックアップ
 if [ -f "$GLOBAL_CLAUDE_DIR/settings.json" ]; then
@@ -155,8 +203,8 @@ SETTINGS_EOF
 
 echo "  -> グローバル設定を作成しました"
 
-# 6. minions のローカル設定からフックを分離
-echo "[5/5] minions のローカル設定を更新..."
+# 10. minions のローカル設定からフックを分離
+echo "[完了] minions のローカル設定を更新..."
 
 # フック定義をバックアップ
 if [ -f "$MINIONS_DIR/.claude/settings.json" ]; then
@@ -177,9 +225,13 @@ echo "📁 作成・更新されたファイル:"
 echo ""
 echo "  グローバル AI 設定 ($GLOBAL_AI_DIR):"
 echo "    ├── hooks/bin -> フックバイナリ (symlink)"
+echo "    ├── skills -> スキル (symlink)"
+echo "    ├── agents -> エージェント設定 (symlink)"
+echo "    ├── rules -> ルール (symlink)"
 echo "    └── memory/events.jsonl -> グローバル記憶"
 echo ""
 echo "  グローバル Claude 設定 ($GLOBAL_CLAUDE_DIR):"
+echo "    ├── CLAUDE.md -> プロジェクト指示書 (symlink)"
 echo "    ├── settings.json ✨ (新規作成 or 上書き)"
 echo "    └── settings.json.backup.* (タイムスタンプ付き)"
 echo ""

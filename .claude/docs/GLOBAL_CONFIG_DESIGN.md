@@ -4,11 +4,40 @@ minions プロジェクトを「ベース」として他のプロジェクトで
 
 ---
 
-## 実装状況（2026-02-04）
+## 実装状況（2026-02-05）
 
 ### 完了した作業
 
-#### 1. グローバル記憶の実装
+#### 1. 完全なグローバル化（2026-02-05）
+
+**すべての設定をシンボリックリンクでグローバル化:**
+```
+~/.config/ai/
+├── hooks/bin -> ~/minions/resources/hooks-rs/target/release
+├── skills -> ~/minions/.claude/skills
+├── agents -> ~/minions/.claude/agents
+├── rules -> ~/minions/.claude/rules
+└── memory/events.jsonl
+
+~/.claude/
+├── CLAUDE.md -> ~/minions/CLAUDE.md
+└── settings.json (全フック定義)
+```
+
+**グローバル化されたコンポーネント（すべて）:**
+- ✅ フック（23個）
+- ✅ スキル（18個）
+- ✅ エージェント設定（階層システム）
+- ✅ ルール（10ファイル）
+- ✅ CLAUDE.md（プロジェクト指示書）
+- ✅ 記憶システム
+
+**利点:**
+- 新プロジェクトで即座に minions の全機能が使える
+- 一箇所での管理（minions リポジトリ）
+- シンボリックリンクで自動同期
+
+#### 2. グローバル記憶の実装
 
 **記憶パスの変更:**
 ```

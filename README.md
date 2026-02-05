@@ -221,24 +221,32 @@ git clone https://github.com/gyumaruya/minions.git ~/minions
 cd ~/minions
 
 # 2. Rust フックをビルド
-cd hooks-rs && cargo build --release
+cd resources/hooks-rs && cargo build --release && cd ../..
 
 # 3. グローバル設定をセットアップ
-~/minions/scripts/setup-global-config.sh
+bash scripts/setup-global-config.sh
 ```
 
 **これで完了！** 以降、すべてのプロジェクトで：
-- 自動PR作成
-- 記憶の自動注入
-- セキュリティガードレール
-- 日本語強制（個人設定）
+- フック（23個）: セキュリティ、ワークフロー、記憶
+- スキル（18個）: /startproject, /delegate, /checkpointing など
+- エージェント階層: Conductor → Musician
+- ルール: 言語、開発環境、セキュリティなど
+- 記憶システム: 自動学習と改善ループ
 
 ### 構成
 
 ```
 ~/.config/ai/
-├── hooks/bin/       # Rust フックバイナリ (symlink)
+├── hooks/bin/       # Rust フックバイナリ (symlink → minions/resources/hooks-rs/target/release)
+├── skills/          # スキル (symlink → minions/.claude/skills)
+├── agents/          # エージェント設定 (symlink → minions/.claude/agents)
+├── rules/           # ルール (symlink → minions/.claude/rules)
 └── memory/          # グローバル記憶
+
+~/.claude/
+├── CLAUDE.md        # プロジェクト指示書 (symlink → minions/CLAUDE.md)
+└── settings.json    # グローバルフック設定
 
 ~/.claude/
 └── settings.json    # 全23フック定義
