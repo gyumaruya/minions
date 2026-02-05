@@ -117,18 +117,69 @@ if [ -f "$GLOBAL_CLAUDE_DIR/settings.json" ]; then
     echo "     既存設定は新しい設定に上書きされます"
 fi
 
-# プラグイン設定を保持しつつ、フックを追加
+# フル設定を作成（全23フック）
 cat > "$GLOBAL_CLAUDE_DIR/settings.json" << 'SETTINGS_EOF'
 {
   "$schema": "https://json.schemastore.org/claude-code-settings.json",
-  "enabledPlugins": {
-    "rust-analyzer-lsp@claude-plugins-official": true
+  "env": {
+    "EDITOR": "code --wait"
+  },
+  "permissions": {
+    "allow": [
+      "Read(*)",
+      "Edit(*)",
+      "Write(*)",
+      "MultiEdit(*)",
+      "Glob(*)",
+      "Grep(*)",
+      "LS(*)",
+      "WebFetch(*)",
+      "WebSearch(*)",
+      "Task(*)",
+      "Skill(*)",
+      "TodoRead(*)",
+      "TodoWrite(*)",
+      "Bash(*)"
+    ],
+    "deny": [
+      "Read(./.env)",
+      "Read(./.env.*)",
+      "Read(./**/*.pem)",
+      "Read(./**/*.key)",
+      "Read(./**/credentials*)",
+      "Read(./**/*secret*)",
+      "Read(~/.ssh/**)",
+      "Read(~/.aws/**)",
+      "Read(~/.config/gcloud/**)",
+      "Bash(rm -rf /)",
+      "Bash(rm -rf /*)",
+      "Bash(rm -rf ~)",
+      "Bash(rm -rf ~/*)",
+      "Bash(sudo rm -rf *)"
+    ]
   },
   "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$HOME/.config/ai/hooks/bin/session-start\"",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
     "UserPromptSubmit": [
       {
         "matcher": "",
         "hooks": [
+          {
+            "type": "command",
+            "command": "\"$HOME/.config/ai/hooks/bin/auto-create-pr\"",
+            "timeout": 60
+          },
           {
             "type": "command",
             "command": "\"$HOME/.config/ai/hooks/bin/load-memories\"",
@@ -137,6 +188,11 @@ cat > "$GLOBAL_CLAUDE_DIR/settings.json" << 'SETTINGS_EOF'
           {
             "type": "command",
             "command": "\"$HOME/.config/ai/hooks/bin/auto-learn\"",
+            "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "\"$HOME/.config/ai/hooks/bin/agent-router\"",
             "timeout": 5
           }
         ]
@@ -158,12 +214,67 @@ cat > "$GLOBAL_CLAUDE_DIR/settings.json" << 'SETTINGS_EOF'
         "hooks": [
           {
             "type": "command",
-            "command": "\"$HOME/.config/ai/hooks/bin/prevent-secrets-commit\"",
+            "command": "\"$HOME/.config/ai/hooks/bin/ensure-noreply-email\"",
             "timeout": 5
           },
           {
             "type": "command",
             "command": "\"$HOME/.config/ai/hooks/bin/enforce-japanese\"",
+            "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "\"$HOME/.config/ai/hooks/bin/enforce-draft-pr\"",
+            "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "\"$HOME/.config/ai/hooks/bin/enforce-no-merge\"",
+            "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "\"$HOME/.config/ai/hooks/bin/prevent-secrets-commit\"",
+            "timeout": 5
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$HOME/.config/ai/hooks/bin/enforce-hierarchy\"",
+            "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "\"$HOME/.config/ai/hooks/bin/ensure-pr-open\"",
+            "timeout": 10
+          },
+          {
+            "type": "command",
+            "command": "\"$HOME/.config/ai/hooks/bin/check-codex-before-write\"",
+            "timeout": 10
+          }
+        ]
+      },
+      {
+        "matcher": "WebSearch|WebFetch",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$HOME/.config/ai/hooks/bin/suggest-gemini-research\"",
+            "timeout": 5
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write|Bash|WebFetch|WebSearch|Task",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$HOME/.config/ai/hooks/bin/enforce-delegation\"",
             "timeout": 5
           }
         ]
@@ -179,25 +290,63 @@ cat > "$GLOBAL_CLAUDE_DIR/settings.json" << 'SETTINGS_EOF'
             "timeout": 5
           }
         ]
+      },
+      {
+        "matcher": "Task",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$HOME/.config/ai/hooks/bin/check-codex-after-plan\"",
+            "timeout": 10
+          },
+          {
+            "type": "command",
+            "command": "\"$HOME/.config/ai/hooks/bin/hierarchy-permissions\"",
+            "timeout": 5
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$HOME/.config/ai/hooks/bin/post-test-analysis\"",
+            "timeout": 10
+          },
+          {
+            "type": "command",
+            "command": "\"$HOME/.config/ai/hooks/bin/log-cli-tools\"",
+            "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "\"$HOME/.config/ai/hooks/bin/auto-commit-on-verify\"",
+            "timeout": 10
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$HOME/.config/ai/hooks/bin/lint-on-save\"",
+            "timeout": 30
+          },
+          {
+            "type": "command",
+            "command": "\"$HOME/.config/ai/hooks/bin/post-implementation-review\"",
+            "timeout": 10
+          }
+        ]
       }
     ]
   },
-  "permissions": {
-    "deny": [
-      "Read(./.env)",
-      "Read(./.env.*)",
-      "Read(./**/*.pem)",
-      "Read(./**/*.key)",
-      "Read(./**/credentials*)",
-      "Read(./**/*secret*)",
-      "Read(~/.ssh/**)",
-      "Read(~/.aws/**)",
-      "Bash(rm -rf /)",
-      "Bash(rm -rf /*)",
-      "Bash(rm -rf ~)",
-      "Bash(sudo rm -rf *)"
-    ]
-  }
+  "enabledPlugins": {
+    "rust-analyzer-lsp@claude-plugins-official": true
+  },
+  "model": "sonnet"
 }
 SETTINGS_EOF
 
