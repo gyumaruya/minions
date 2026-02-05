@@ -103,48 +103,64 @@ Conductor が Musician を spawn すると、適切な許可が自動的に付�
     「わからないなら手を動かす。やってみよう！」
 ```
 
-## 禁止事項（フックで強制）
+## ワークフロー
 
-### 全階層共通
+### 作業フロー
 
-- ポーリング禁止（API代金の浪費）
-- コンテキスト未読での作業禁止
+1. **自由な作業** - Conductor も Musician も制限なく作業可能
+2. **適切な委譲** - 複雑なタスクは Musician に委譲（推奨）
+3. **完了時検証** - 作業完了後に検証スクリプトを実行
 
-### Conductor
+### 推奨事項
 
-- **過度な直接作業禁止** → `enforce-delegation.py` が警告・ブロック
-  - 連続3回の作業ツール使用で警告
-  - 連続5回の作業ツール使用でブロック
-- 委譲すべきタスクは Musician へ Task ツールで委譲
+#### Conductor（指揮者）
 
-### Musician
+- 全体設計・計画・調整に注力
+- 実装は Musician に委譲することを推奨（強制ではない）
+- `.claude/` 配下の設定・ドキュメントは自由に編集可
 
-- サブエージェント spawn 禁止（最下層エージェント）
-- 制限なし（自由に作業可能）
+#### Musician（演奏者）
 
-## 強制フック
+- 実装・検証・テストを担当
+- サブエージェント spawn は不要（最下層）
+- すべてのツールを自由に使用可
 
-### `enforce-delegation.py`
+## 検証システム
 
-Conductor が委譲なしで連続作業すると警告・ブロック:
+### 事後検証アプローチ
 
-**動作:**
-- 連続3回の作業ツール使用 → ⚠ 警告
-- 連続5回の作業ツール使用 → ⛔ ブロック
+**旧システム**: 事前制限 → 作業をブロック
+**新システム**: 事後検証 → 自由に作業、完了時に検証
 
-**作業ツール**: `Edit`, `Write`, `Bash`, `WebFetch`, `WebSearch`
+### 検証方法
 
-**リセット条件:**
-- Task ツールで Musician へ委譲するとカウンターリセット
-- 10分間作業なしでカウンターリセット
+```bash
+# 手動検証
+./scripts/verify.sh
+```
 
-### 例外（編集可能なファイル）
+検証内容:
+- Git status / diff
+- Lint / Format check
+- Type check
+- Tests
+- AI による分析（Copilot）
 
-以下は Conductor でもカウントされない（自由に編集可能）:
+→ 詳細: `.claude/docs/VERIFICATION_SYSTEM.md`
 
-- `.claude/` 配下の設定・ドキュメント
-- `memory/` 配下
-- `pyproject.toml`, `settings.json`, `.gitignore`
+### 検証タイミング
+
+- 実装完了後
+- コミット前
+- PR 作成前
+
+### 自動検証（将来実装予定）
+
+完了時に `[[VERIFY:done]]` マーカーを含めると自動検証:
+
+```
+実装完了しました [[VERIFY:done]]
+```
 
 ## 委譲スキル
 
@@ -161,10 +177,10 @@ Conductor が委譲なしで連続作業すると警告・ブロック:
 
 ## 実装
 
-Python モジュール: `src/minions/agents/`
+検証スクリプト: `scripts/verify.sh`
+
+Python モジュール: `src/minions/agents/`（階層管理用）
 
 - `base.py` - 基底クラス（AgentRole, AgentPersona, AgentHierarchy）
 - `permissions.py` - 許可モデル（PermissionScope, PermissionGrant）
 - `claude_cli.py` - Claude Code CLI ラッパー
-
-フック: `.claude/hooks/hierarchy-permissions.py`

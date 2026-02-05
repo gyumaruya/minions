@@ -34,6 +34,8 @@ members = [
     "crates/hooks/session-start",
     # Tier 7 - Post-push hooks
     "crates/hooks/auto-create-pr-on-push",
+    # Tier 8 - Verification hooks
+    "crates/hooks/verify-completion",
 ]
 
 [workspace.package]
