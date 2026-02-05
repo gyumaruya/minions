@@ -42,43 +42,43 @@ fi
 ln -sf "$MINIONS_DIR/resources/hooks-rs/target/release" "$GLOBAL_AI_DIR/hooks/bin"
 echo "  -> $GLOBAL_AI_DIR/hooks/bin -> $MINIONS_DIR/resources/hooks-rs/target/release"
 
-# 4. スキルのシンボリックリンク
+# 4. スキルのシンボリックリンク（~/.claude/skills）
 echo "[3/8] スキルをリンク..."
-if [ -L "$GLOBAL_AI_DIR/skills" ]; then
-    rm "$GLOBAL_AI_DIR/skills"
+if [ -L "$GLOBAL_CLAUDE_DIR/skills" ]; then
+    rm "$GLOBAL_CLAUDE_DIR/skills"
 fi
 if [ -d "$MINIONS_DIR/.claude/skills" ]; then
-    ln -sf "$MINIONS_DIR/.claude/skills" "$GLOBAL_AI_DIR/skills"
-    echo "  -> $GLOBAL_AI_DIR/skills -> $MINIONS_DIR/.claude/skills"
+    ln -sf "$MINIONS_DIR/.claude/skills" "$GLOBAL_CLAUDE_DIR/skills"
+    echo "  -> $GLOBAL_CLAUDE_DIR/skills -> $MINIONS_DIR/.claude/skills"
 else
     echo "  -> ⚠ スキルディレクトリが見つかりません（スキップ）"
 fi
 
-# 5. エージェント設定のシンボリックリンク
+# 5. エージェント設定のシンボリックリンク（~/.claude/agents）
 echo "[4/8] エージェント設定をリンク..."
-if [ -L "$GLOBAL_AI_DIR/agents" ]; then
-    rm "$GLOBAL_AI_DIR/agents"
+if [ -L "$GLOBAL_CLAUDE_DIR/agents" ]; then
+    rm "$GLOBAL_CLAUDE_DIR/agents"
 fi
 if [ -d "$MINIONS_DIR/.claude/agents" ]; then
-    ln -sf "$MINIONS_DIR/.claude/agents" "$GLOBAL_AI_DIR/agents"
-    echo "  -> $GLOBAL_AI_DIR/agents -> $MINIONS_DIR/.claude/agents"
+    ln -sf "$MINIONS_DIR/.claude/agents" "$GLOBAL_CLAUDE_DIR/agents"
+    echo "  -> $GLOBAL_CLAUDE_DIR/agents -> $MINIONS_DIR/.claude/agents"
 else
     echo "  -> ⚠ エージェントディレクトリが見つかりません（スキップ）"
 fi
 
-# 6. ルールのシンボリックリンク
+# 6. ルールのシンボリックリンク（~/.claude/rules）
 echo "[5/8] ルールをリンク..."
-if [ -L "$GLOBAL_AI_DIR/rules" ]; then
-    rm "$GLOBAL_AI_DIR/rules"
+if [ -L "$GLOBAL_CLAUDE_DIR/rules" ]; then
+    rm "$GLOBAL_CLAUDE_DIR/rules"
 fi
 if [ -d "$MINIONS_DIR/.claude/rules" ]; then
-    ln -sf "$MINIONS_DIR/.claude/rules" "$GLOBAL_AI_DIR/rules"
-    echo "  -> $GLOBAL_AI_DIR/rules -> $MINIONS_DIR/.claude/rules"
+    ln -sf "$MINIONS_DIR/.claude/rules" "$GLOBAL_CLAUDE_DIR/rules"
+    echo "  -> $GLOBAL_CLAUDE_DIR/rules -> $MINIONS_DIR/.claude/rules"
 else
     echo "  -> ⚠ ルールディレクトリが見つかりません（スキップ）"
 fi
 
-# 7. CLAUDE.md のシンボリックリンク
+# 7. CLAUDE.md のシンボリックリンク（~/.claude/CLAUDE.md）
 echo "[6/8] CLAUDE.md をリンク..."
 if [ -L "$GLOBAL_CLAUDE_DIR/CLAUDE.md" ]; then
     rm "$GLOBAL_CLAUDE_DIR/CLAUDE.md"
@@ -225,12 +225,12 @@ echo "📁 作成・更新されたファイル:"
 echo ""
 echo "  グローバル AI 設定 ($GLOBAL_AI_DIR):"
 echo "    ├── hooks/bin -> フックバイナリ (symlink)"
-echo "    ├── skills -> スキル (symlink)"
-echo "    ├── agents -> エージェント設定 (symlink)"
-echo "    ├── rules -> ルール (symlink)"
 echo "    └── memory/events.jsonl -> グローバル記憶"
 echo ""
 echo "  グローバル Claude 設定 ($GLOBAL_CLAUDE_DIR):"
+echo "    ├── skills -> スキル (symlink)"
+echo "    ├── agents -> エージェント設定 (symlink)"
+echo "    ├── rules -> ルール (symlink)"
 echo "    ├── CLAUDE.md -> プロジェクト指示書 (symlink)"
 echo "    ├── settings.json ✨ (新規作成 or 上書き)"
 echo "    └── settings.json.backup.* (タイムスタンプ付き)"

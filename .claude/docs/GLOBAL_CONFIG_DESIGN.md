@@ -14,15 +14,19 @@ minions プロジェクトを「ベース」として他のプロジェクトで
 ```
 ~/.config/ai/
 ├── hooks/bin -> ~/minions/resources/hooks-rs/target/release
-├── skills -> ~/minions/.claude/skills
-├── agents -> ~/minions/.claude/agents
-├── rules -> ~/minions/.claude/rules
 └── memory/events.jsonl
 
 ~/.claude/
+├── skills -> ~/minions/.claude/skills
+├── agents -> ~/minions/.claude/agents
+├── rules -> ~/minions/.claude/rules
 ├── CLAUDE.md -> ~/minions/CLAUDE.md
 └── settings.json (全フック定義)
 ```
+
+**配置場所の選択:**
+- フック・記憶: `~/.config/ai/` (ツール非依存)
+- スキル・エージェント・ルール・CLAUDE.md: `~/.claude/` (Claude Code が自動認識)
 
 **グローバル化されたコンポーネント（すべて）:**
 - ✅ フック（23個）

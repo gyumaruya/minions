@@ -239,12 +239,12 @@ bash scripts/setup-global-config.sh
 ```
 ~/.config/ai/
 ├── hooks/bin/       # Rust フックバイナリ (symlink → minions/resources/hooks-rs/target/release)
-├── skills/          # スキル (symlink → minions/.claude/skills)
-├── agents/          # エージェント設定 (symlink → minions/.claude/agents)
-├── rules/           # ルール (symlink → minions/.claude/rules)
 └── memory/          # グローバル記憶
 
 ~/.claude/
+├── skills/          # スキル (symlink → minions/.claude/skills)
+├── agents/          # エージェント設定 (symlink → minions/.claude/agents)
+├── rules/           # ルール (symlink → minions/.claude/rules)
 ├── CLAUDE.md        # プロジェクト指示書 (symlink → minions/CLAUDE.md)
 └── settings.json    # グローバルフック設定
 
