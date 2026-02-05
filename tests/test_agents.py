@@ -2,7 +2,6 @@
 Tests for the hierarchical agent system.
 """
 
-
 from minions.agents.base import (
     CONDUCTOR_PERSONA,
     MUSICIAN_PERSONAS,
@@ -145,9 +144,7 @@ class TestPermissionSet:
 
     def test_add_permission(self) -> None:
         pset = PermissionSet()
-        pset.add(
-            PermissionGrant(scope=PermissionScope.READ_FILES, granted_by="test")
-        )
+        pset.add(PermissionGrant(scope=PermissionScope.READ_FILES, granted_by="test"))
         assert pset.has_permission(PermissionScope.READ_FILES)
 
     def test_all_permission_grants_everything(self) -> None:

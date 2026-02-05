@@ -35,7 +35,9 @@ class TestMemoryCLI:
         memory_dir = tmp_path / "minions" / ".claude" / "memory"
         memory_dir.mkdir(parents=True)
 
-        cli_path = Path(__file__).parent.parent / "src" / "minions" / "memory" / "cli.py"
+        cli_path = (
+            Path(__file__).parent.parent / "src" / "minions" / "memory" / "cli.py"
+        )
 
         # Add a memory
         result = subprocess.run(
@@ -44,8 +46,10 @@ class TestMemoryCLI:
                 str(cli_path),
                 "add",
                 "Test preference",
-                "--type", "preference",
-                "--context", "test",
+                "--type",
+                "preference",
+                "--context",
+                "test",
             ],
             capture_output=True,
             text=True,
@@ -77,7 +81,9 @@ class TestMemoryCLI:
         memory_dir = tmp_path / "minions" / ".claude" / "memory"
         memory_dir.mkdir(parents=True)
 
-        cli_path = Path(__file__).parent.parent / "src" / "minions" / "memory" / "cli.py"
+        cli_path = (
+            Path(__file__).parent.parent / "src" / "minions" / "memory" / "cli.py"
+        )
 
         result = subprocess.run(
             [sys.executable, str(cli_path), "stats"],
@@ -96,7 +102,9 @@ class TestMemoryCLI:
         memory_dir = tmp_path / "minions" / ".claude" / "memory"
         memory_dir.mkdir(parents=True)
 
-        cli_path = Path(__file__).parent.parent / "src" / "minions" / "memory" / "cli.py"
+        cli_path = (
+            Path(__file__).parent.parent / "src" / "minions" / "memory" / "cli.py"
+        )
 
         # Add a memory
         result = subprocess.run(
@@ -106,7 +114,8 @@ class TestMemoryCLI:
                 "--json",
                 "add",
                 "JSON test",
-                "--type", "preference",
+                "--type",
+                "preference",
             ],
             capture_output=True,
             text=True,
@@ -128,6 +137,7 @@ class TestAutoLearnHook:
 
         # Load module dynamically
         import importlib.util
+
         spec = importlib.util.spec_from_file_location("auto_learn", hook_path)
         assert spec is not None
         assert spec.loader is not None
@@ -152,6 +162,7 @@ class TestAutoLearnHook:
         hook_path = Path(__file__).parent.parent / ".claude" / "hooks" / "auto-learn.py"
 
         import importlib.util
+
         spec = importlib.util.spec_from_file_location("auto_learn", hook_path)
         assert spec is not None
         assert spec.loader is not None
@@ -170,9 +181,12 @@ class TestLoadMemoriesHook:
 
     def test_format_memories(self) -> None:
         """Test memory formatting for context injection."""
-        hook_path = Path(__file__).parent.parent / ".claude" / "hooks" / "load-memories.py"
+        hook_path = (
+            Path(__file__).parent.parent / ".claude" / "hooks" / "load-memories.py"
+        )
 
         import importlib.util
+
         spec = importlib.util.spec_from_file_location("load_memories", hook_path)
         assert spec is not None
         assert spec.loader is not None
@@ -195,9 +209,12 @@ class TestLoadMemoriesHook:
 
     def test_empty_memories(self) -> None:
         """Test handling of empty memories."""
-        hook_path = Path(__file__).parent.parent / ".claude" / "hooks" / "load-memories.py"
+        hook_path = (
+            Path(__file__).parent.parent / ".claude" / "hooks" / "load-memories.py"
+        )
 
         import importlib.util
+
         spec = importlib.util.spec_from_file_location("load_memories", hook_path)
         assert spec is not None
         assert spec.loader is not None

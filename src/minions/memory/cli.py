@@ -202,9 +202,7 @@ def main() -> int:
         description="Memory CLI for Multi-Agent Orchestra",
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
-    parser.add_argument(
-        "--json", action="store_true", help="Output as JSON"
-    )
+    parser.add_argument("--json", action="store_true", help="Output as JSON")
     parser.add_argument(
         "--mem0", action="store_true", help="Enable mem0 semantic search"
     )
@@ -215,25 +213,29 @@ def main() -> int:
     add_parser = subparsers.add_parser("add", help="Add a memory")
     add_parser.add_argument("content", help="Memory content")
     add_parser.add_argument(
-        "--type", "-t",
+        "--type",
+        "-t",
         default="preference",
         choices=[t.value for t in MemoryType],
         help="Memory type",
     )
     add_parser.add_argument(
-        "--scope", "-s",
+        "--scope",
+        "-s",
         default="user",
         choices=[s.value for s in MemoryScope],
         help="Memory scope",
     )
     add_parser.add_argument(
-        "--agent", "-a",
+        "--agent",
+        "-a",
         default="claude",
         choices=[a.value for a in AgentType],
         help="Source agent",
     )
     add_parser.add_argument(
-        "--context", "-c",
+        "--context",
+        "-c",
         help="Additional context",
     )
     add_parser.add_argument(
@@ -246,22 +248,26 @@ def main() -> int:
     search_parser = subparsers.add_parser("search", help="Search memories")
     search_parser.add_argument("query", help="Search query")
     search_parser.add_argument(
-        "--type", "-t",
+        "--type",
+        "-t",
         choices=[t.value for t in MemoryType],
         help="Filter by type",
     )
     search_parser.add_argument(
-        "--scope", "-s",
+        "--scope",
+        "-s",
         choices=[s.value for s in MemoryScope],
         help="Filter by scope",
     )
     search_parser.add_argument(
-        "--agent", "-a",
+        "--agent",
+        "-a",
         choices=[a.value for a in AgentType],
         help="Filter by agent",
     )
     search_parser.add_argument(
-        "--limit", "-l",
+        "--limit",
+        "-l",
         type=int,
         default=10,
         help="Max results",
@@ -271,17 +277,20 @@ def main() -> int:
     # list command
     list_parser = subparsers.add_parser("list", help="List recent memories")
     list_parser.add_argument(
-        "--type", "-t",
+        "--type",
+        "-t",
         choices=[t.value for t in MemoryType],
         help="Filter by type",
     )
     list_parser.add_argument(
-        "--agent", "-a",
+        "--agent",
+        "-a",
         choices=[a.value for a in AgentType],
         help="Filter by agent",
     )
     list_parser.add_argument(
-        "--limit", "-l",
+        "--limit",
+        "-l",
         type=int,
         default=10,
         help="Max results",
