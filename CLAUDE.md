@@ -106,7 +106,7 @@ Bash("codex exec ... '1文で答えて'")
 
 ## Agent Hierarchy (階層型エージェントシステム) ✓ 実装済み
 
-**許可の階層委譲**により、サブエージェントがユーザー確認なしで動作可能。
+**自由な作業 + 事後検証**により、エージェントが効率的に協調。
 
 **万能天才路線**: 歴史上の知的巨人をペルソナとして採用。
 
@@ -121,7 +121,7 @@ User (ユーザー)
 │   "Simplicity is the ultimate    │
 │    sophistication."              │
 └────────────┬─────────────────────┘
-             │ 許可を自動委譲
+             │ 委譲（推奨）
              ▼
 ┌──────────────────────────────────┐
 │   MUSICIAN: Richard Feynman      │ ← 好奇心と実践
@@ -138,10 +138,11 @@ User (ユーザー)
 - 中間層（Section Leader / John von Neumann）を追加して3層化も可能
 - 現状は2層で十分なシンプルさを保持
 
-### 許可の委譲
+### ワークフロー
 
-親エージェントがサブエージェントを spawn すると、`hierarchy-permissions.py` フックが
-適切な許可を自動的に付与。ユーザー確認は不要。
+1. **自由な作業** - 両エージェントとも制限なく作業可能
+2. **適切な委譲** - Conductor は Musician に委譲を推奨（強制ではない）
+3. **完了時検証** - 作業完了後に検証スクリプトを実行
 
 ### ペルソナ（万能天才路線）
 
@@ -155,7 +156,24 @@ User (ユーザー)
 **拡張オプション:**
 | Section Leader | **John von Neumann** | 論理的分解、最適化、並列処理（3層化時）|
 
-→ 詳細: `.claude/rules/agent-hierarchy.md`
+### 検証システム
+
+**旧システム**: 事前制限 → 作業をブロック
+**新システム**: 事後検証 → 自由に作業、完了時に検証
+
+```bash
+# 手動検証
+./scripts/verify.sh
+```
+
+検証内容:
+- Git status / diff
+- Lint / Format / Type check
+- Tests
+- AI 分析（Copilot）
+
+→ 詳細: `.claude/docs/VERIFICATION_SYSTEM.md`
+→ 階層ルール: `.claude/rules/agent-hierarchy.md`
 → 指示書: `.claude/agents/instructions/`
 
 ---
