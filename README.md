@@ -307,29 +307,22 @@ gemini login
 npm install -g @anthropic-ai/claude-code  # claude の alias として copilot を使用
 ```
 
-### Installation
+### 新規プロジェクトで使う
 
-既存プロジェクトに導入:
-
-```bash
-git clone --depth 1 https://github.com/gyumaruya/minions.git .minions-starter
-cp -r .minions-starter/.claude .minions-starter/.codex .minions-starter/.gemini .minions-starter/CLAUDE.md .
-rm -rf .minions-starter
-
-# Python 依存関係（Memory Layer 用）
-uv sync
-```
-
-### Start
+グローバルセットアップ完了後、新規プロジェクトでは**何も設定不要**です。
 
 ```bash
+# 任意のプロジェクトで Claude Code を起動
+cd ~/your-project
 claude
 ```
 
 セッション開始時に自動で:
-1. 過去の記憶をコンテキストに注入
-2. Draft PR を自動作成
-3. エージェントルーティングを有効化
+1. ✅ 過去の記憶をコンテキストに注入
+2. ✅ Draft PR を自動作成
+3. ✅ 全23フックが有効化
+4. ✅ 全18スキルが使用可能
+5. ✅ エージェント階層が利用可能
 
 ---
 
