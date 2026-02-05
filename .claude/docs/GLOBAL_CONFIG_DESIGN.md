@@ -97,17 +97,28 @@ minions/.claude/settings.json
 **場所:** `~/minions/scripts/setup-global-config.sh`
 
 **実行内容:**
-1. `~/.config/ai/` ディレクトリ構造作成
-2. フックバイナリへの symlink 作成
-3. minions の記憶をグローバルに移行
-4. `~/.claude/settings.json` にグローバルフック設定
-5. `minions/.claude/settings.json` を最小化
+1. `~/.config/ai/` と `~/.claude/` ディレクトリ構造作成
+2. フックバイナリへの symlink 作成 (`~/.config/ai/hooks/bin`)
+3. スキルへの symlink 作成 (`~/.claude/skills`)
+4. エージェント設定への symlink 作成 (`~/.claude/agents`)
+5. ルールへの symlink 作成 (`~/.claude/rules`)
+6. CLAUDE.md への symlink 作成 (`~/.claude/CLAUDE.md`)
+7. グローバル記憶の初期化 (`~/.config/ai/memory/events.jsonl`)
+8. `~/.claude/settings.json` にグローバルフック設定を書き込み
 
 **使い方:**
 ```bash
-cd ~/minions/hooks-rs && cargo build --release
-~/minions/scripts/setup-global-config.sh
+# 1. フックをビルド
+cd ~/minions/resources/hooks-rs && cargo build --release
+
+# 2. セットアップスクリプトを実行
+bash ~/minions/scripts/setup-global-config.sh
 ```
+
+**安全性:**
+- 既存の `~/.claude/settings.json` はタイムスタンプ付きでバックアップ
+- シンボリックリンクは既存があれば上書き
+- エラー時は途中で停止（`set -e`）
 
 ---
 
