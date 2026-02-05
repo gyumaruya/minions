@@ -104,6 +104,19 @@ pub fn gh(args: &str) -> Result<CommandResult> {
     run_command(&format!("gh {}", args))
 }
 
+/// Check if the current directory is a git repository.
+pub fn is_git_repo() -> bool {
+    // Check for .git directory
+    if std::path::Path::new(".git").exists() {
+        return true;
+    }
+
+    // Fallback: try git rev-parse
+    git("rev-parse --git-dir")
+        .map(|r| r.success)
+        .unwrap_or(false)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -14,6 +14,11 @@ const TIMEOUT: Duration = Duration::from_secs(30);
 fn main() -> Result<()> {
     let _input = HookInput::from_stdin()?;
 
+    // Early return if not a git repository
+    if !is_git_repo() {
+        return Ok(());
+    }
+
     let project_dir = std::env::var("CLAUDE_PROJECT_DIR").unwrap_or_else(|_| ".".to_string());
     let marker_file = PathBuf::from(&project_dir)
         .join(".claude")
