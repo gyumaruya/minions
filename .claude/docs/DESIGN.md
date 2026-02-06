@@ -161,6 +161,12 @@ Resolution order: Project overrides Global; tool-specific configs read from `.ai
 | Default to cost-effective verifier with escalation based on risk/impact | Balances thoroughness with budget | Always Codex, always Copilot | 2026-02-05 |
 | Verification profile tiers (quick/standard/deep) with bounded checks | Predictable runtime and configurable rigor | Unbounded ad-hoc verification | 2026-02-05 |
 | Use Stop/SubagentStop hooks as the Claude Code equivalent of PostAssistantResponse | Enables completion detection and verification triggers at response end | Rely on PostToolUse heuristics only | 2026-02-05 |
+| Split completion hooks into Stop / PermissionRequest / Notification with clear responsibilities | Prevents mixed concerns, reduces false positives, and enables targeted policies | Single "catch-all" stop hook | 2026-02-05 |
+| Use Opus 4.5 for judgment in Stop + PermissionRequest via Copilot CLI with Opus subagent | Keeps cost low while ensuring strong reasoning for safety/verification | Direct API-only, Haiku | 2026-02-05 |
+| Add hook recursion guard (env flag + depth counter + run-id) to prevent infinite loops | Prevents self-triggering when hooks invoke tools/LLMs | Trust hook discipline only | 2026-02-05 |
+| Require strict Stop completion gates (acceptance, tests, regressions, tasks, Codex review) before "done" | Enforces high-confidence completion and reduces rework | Soft checklist only | 2026-02-05 |
+| Auto-answer repeated user questions using stored Q/A memory with confidence threshold | Reduces friction and avoids re-asking | Always ask again | 2026-02-05 |
+| Prevent hook recursion without env vars by invoking Claude Code with isolated settings (via `--setting-sources` + `--settings`) and a strict tool denylist (`--tools ""` or `--disallowedTools`) for judgment subcalls | Avoids hook self-triggering while keeping Opus judgment available | Env flags, ad-hoc prompt markers only | 2026-02-05 |
 
 ### Memory Learning Strategy (2026-02-04)
 
@@ -205,6 +211,10 @@ Resolution order: Project overrides Global; tool-specific configs read from `.ai
 - [ ] Implement PostToolUse error verification trigger
 - [ ] Add verifier selection policy (risk/impact thresholds and overrides)
 - [ ] Add verification profiles (quick/standard/deep) and default mapping
+- [ ] Define Stop/PermissionRequest/Notification hook contracts and responsibility boundaries
+- [ ] Implement hook recursion guard (env flag + depth counter + run-id propagation)
+- [ ] Implement strict Stop completion gates (AC/tests/regressions/tasks/Codex review)
+- [ ] Implement Q/A memory cache for auto-answer with confidence threshold + TTL
 
 ## Open Questions
 
@@ -221,6 +231,9 @@ Resolution order: Project overrides Global; tool-specific configs read from `.ai
 - [ ] Should ambiguous PermissionRequest default to deny, or user-prompt fallback, when LLM call fails?
 - [ ] Which verification checks are mandatory vs profile-specific (tests, lint, typecheck)?
 - [ ] What are the exact keyword heuristics to avoid false positives across JP/EN?
+- [ ] Should PermissionRequest default to deny or to user-prompt when Opus is unavailable?
+- [ ] What is the confidence threshold for auto-answering repeated questions?
+- [ ] Are PermissionRequest and Notification hook JSON outputs formally documented beyond the common JSON fields?
 
 ## Changelog
 
@@ -242,3 +255,5 @@ Resolution order: Project overrides Global; tool-specific configs read from `.ai
 | 2026-02-04 | Recorded PermissionRequest auto-approval triage direction and follow-up TODO/Open Question items |
 | 2026-02-04 | Added memory architecture recommendation (3-tier routing), structured episode learning, and retrieval budget policy |
 | 2026-02-05 | Added decision to use Stop/SubagentStop hooks for response-completion verification triggers in Claude Code |
+| 2026-02-05 | Added hook responsibility split, recursion guard, strict Stop gates, and Q/A auto-answering decision |
+| 2026-02-05 | Added recursion prevention approach using isolated settings + tool denylist for judgment subcalls |
